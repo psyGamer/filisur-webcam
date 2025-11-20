@@ -11,7 +11,7 @@ import util
 video_source = "https://grischuna-cam.weta.ch/cgi-bin/mjpg/video.cgi?channel=0&subtype=1"
 # video_source = "test_data/showdown_17_19-11-cut-merged-1763571587874.avi"
 # video_source = "test_data/showdown_17_19-11-cut-merged-1763571763260.avi"
-video_source = "test_data/reversed.avi"
+# video_source = "test_data/reversed.avi"
 
 # video_source = "videos/2025-11-20_05-55-30.mp4" ## Ausfahrt Gleis. 1 -> Chur
 
@@ -19,6 +19,7 @@ window_normal = "Normal"
 window_diff   = "Difference"
 
 snippet_duration = 10.0
+check_interval = 3.0
 
 debug_mode = True
 output_video = True or not debug_mode
@@ -28,11 +29,9 @@ output_video = True or not debug_mode
 class Area:
     points: list[tuple[float, float]]
     trigger_threshold: int
-    trigger_duration: float
-
-    current_trigger_timer: float = 0.0
 
     mask_image: np.typing.NDArray[np.uint8] = None
+    mask_percentage: float = 0.0
     computed_points: np.typing.NDArray[np.int32] = None
 
     def compute(self, width: int, height: int):
@@ -42,27 +41,34 @@ class Area:
         self.mask_image = np.zeros((height,width,3), np.uint8)
         cv2.fillPoly(self.mask_image, [self.computed_points], color=(255, 255, 255))
 
+        self.mask_percentage = np.sum(self.mask_image == (255, 255, 255)) / (width * height)
+
+    def trigger_check(self, image_diff: np.typing.NDArray, diff_sum: float) -> bool:
+        area_diff = cv2.bitwise_and(image_diff, self.mask_image)
+        area_sum = np.sum(area_diff)
+        
+        # print(f"- {area_sum}/{self.trigger_threshold}  =>  {area_sum/diff_sum*100}% // {self.mask_percentage*100}%")
+
+        return area_sum >= self.trigger_threshold and area_sum/diff_sum >= self.mask_percentage*0.9
 
 scan_areas = [
     ## Bahnsteig Richtung St. Moritz (Gleis 1-3)
     Area(
         points=[(0.85, 1.0), (1.0, 1.0), (1.0, 0.69), (0.75, 0.60), (0.64, 0.75)],
-        trigger_threshold=10000,
-        trigger_duration=1.0,
+        trigger_threshold=200_000,
     ),
 
     ## Bahnsteig Richtung Chur (Gleis 2)
     Area(
         points=[(0.77, 0.67), (0.68, 0.67), (0.50, 0.55), (0.54, 0.55)],
-        trigger_threshold=1000,
-        trigger_duration=3.0,
+        trigger_threshold=50_000,
     ),
 
+    ## TODO: Erkennt bei Nacht (und vllt. auch Tag) schlecht langsame Züge
     ## Bahnsteig Richtung Chur (Gleis 1)
     Area(
         points=[(0.64, 0.75), (0.50, 0.60), (0.50, 0.55), (0.68, 0.67)],
-        trigger_threshold=1000,
-        trigger_duration=3.0,
+        trigger_threshold=30_000,
     ),
 ]
 
@@ -102,12 +108,12 @@ class SnippetCollection:
 
     def next_snippet(self, file):
         print(f" -> {file}")
-        if not output_video:
-            return
 
         self.previous_file = self.current_file
         self.current_file = file
-        self.removal_queue.append(file)
+
+        if output_video:
+            self.removal_queue.append(file)
 
         if self.recording:
             self.segments.append(file)
@@ -116,14 +122,15 @@ class SnippetCollection:
             self.wait_for_last = False
         elif len(self.segments) != 0:
             self.flush()
-        elif len(self.removal_queue) > 15:
-            while len(self.removal_queue) > 5:
+        elif len(self.removal_queue) > 180 and output_video:
+            while len(self.removal_queue) > 60:
                 queued_file = self.removal_queue.pop(0)
                 print(f"* Cleaned {queued_file}")
                 os.remove(queued_file)
     
     def flush(self):
         if not output_video:
+            print(f" => {self.target_file}  ({len(self.segments)} segments)")
             return
 
         ## Create file list
@@ -175,6 +182,9 @@ def run_capture(collection: SnippetCollection):
     fail_count = 0
     snippet_count = 0
 
+    check_counter = 0
+    check_time = 0
+
     src_width = None
     src_height = None
     src_deltatime = None
@@ -203,6 +213,8 @@ def run_capture(collection: SnippetCollection):
             src_fps = capture.get(cv2.CAP_PROP_FPS) / 2
             src_deltatime = 1.0 / src_fps
 
+            check_time = int(check_interval * src_fps)
+
             for area in scan_areas:
                 area.compute(src_width, src_height)
 
@@ -219,6 +231,34 @@ def run_capture(collection: SnippetCollection):
         writer.write(curr_image)
         snippet_count += 1
 
+        if check_counter > 0:
+            check_counter -= 1
+
+            if not debug_mode:
+                continue
+
+            image_diff = cv2.absdiff(prev_image, curr_image)
+            image_diff[image_diff < 50] = 0
+
+            diff_sum = np.sum(image_diff)
+
+            for area in scan_areas:
+                if debug_mode:
+                    color = (0, 255, 0) if area.trigger_check(image_diff, diff_sum) else (255, 0, 0)
+                    cv2.polylines(curr_image, [area.computed_points], isClosed=True, color=color, thickness=5)
+
+            cv2.imshow(window_normal, curr_image)
+            cv2.waitKey(1)
+            cv2.waitKey(1)
+            cv2.waitKey(1)
+            cv2.waitKey(1)
+            cv2.waitKey(1)
+            continue
+        else:
+            check_counter = check_time
+            # while cv2.waitKey(1) != 27:
+            #     pass
+
         ## Detect difference
         if prev_image is None:
             prev_image = curr_image
@@ -228,30 +268,23 @@ def run_capture(collection: SnippetCollection):
         image_diff[image_diff < 50] = 0
         prev_image = curr_image
 
+        diff_sum = np.sum(image_diff)
+
         # Copy to avoid messing with difference
         if debug_mode:
             curr_image = curr_image.copy()
 
         ## Analyse areas
         any_active = False
+        # print("===")
         for area in scan_areas:
-            area_diff = cv2.bitwise_and(image_diff, area.mask_image)
-
-            area_sum = np.sum(area_diff)
-            area_triggered = area_sum >= area.trigger_threshold
+            area_triggered = area.trigger_check(image_diff, diff_sum)
 
             if area_triggered:
-                area.current_trigger_timer = min(area.trigger_duration * 2.0, area.current_trigger_timer + src_deltatime)
-            else:
-                area.current_trigger_timer = max(0.0, area.current_trigger_timer - src_deltatime)
-
-            if area.current_trigger_timer > area.trigger_duration:
                 any_active = True
 
-            # print(f"Area Sum: {area_sum} => {area_triggered} || {area.current_trigger_timer}")
-
             if debug_mode:
-                color = (0, 255, 0) if area.current_trigger_timer > area.trigger_duration else ((0, 0, 255) if area_triggered else (255, 0, 0))
+                color = (0, 255, 0) if area_triggered else (255, 0, 0)
                 cv2.polylines(curr_image, [area.computed_points], isClosed=True, color=color, thickness=5)
         
         if any_active and not collection.recording:
@@ -281,8 +314,8 @@ def main():
     
     collection = SnippetCollection()
 
-    # while True:
-    if True:
+    while True:
+    # if True:
         print(f"Attemping capture on {datetime.now()}")
         try:
             run_capture(collection)
