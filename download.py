@@ -11,6 +11,7 @@ import util
 video_source = "https://grischuna-cam.weta.ch/cgi-bin/mjpg/video.cgi?channel=0&subtype=1"
 # video_source = "test_data/showdown_17_19-11-cut-merged-1763571587874.avi"
 # video_source = "test_data/showdown_17_19-11-cut-merged-1763571763260.avi"
+video_source = "test_data/reversed.avi"
 
 # video_source = "videos/2025-11-20_05-55-30.mp4" ## Ausfahrt Gleis. 1 -> Chur
 
@@ -19,7 +20,8 @@ window_diff   = "Difference"
 
 snippet_duration = 10.0
 
-debug_mode = False
+debug_mode = True
+output_video = True or not debug_mode
 
 
 @dataclass
@@ -56,7 +58,12 @@ scan_areas = [
         trigger_duration=3.0,
     ),
 
-    ## TODO: Bahnsteig Richtung Chur (Gleis 1)
+    ## Bahnsteig Richtung Chur (Gleis 1)
+    Area(
+        points=[(0.64, 0.75), (0.50, 0.60), (0.50, 0.55), (0.68, 0.67)],
+        trigger_threshold=1000,
+        trigger_duration=3.0,
+    ),
 ]
 
 
@@ -77,7 +84,7 @@ class SnippetCollection:
         self.removal_queue = []
 
     def start_recording(self):
-        print("START REC")
+        print(f"== Started Recording at {datetime.now()} ==")
         if len(self.segments) == 0:
             if not self.previous_file:
                 self.segments = [self.current_file]
@@ -88,13 +95,16 @@ class SnippetCollection:
         self.target_file = f"videos/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.mp4"
 
     def stop_recording(self):
-        print("STOP REC")
+        print(f"== Stopped Recording at {datetime.now()} ==")
         self.recording = False
         self.wait_for_last = True
 
 
     def next_snippet(self, file):
         print(f" -> {file}")
+        if not output_video:
+            return
+
         self.previous_file = self.current_file
         self.current_file = file
         self.removal_queue.append(file)
@@ -113,31 +123,14 @@ class SnippetCollection:
                 os.remove(queued_file)
     
     def flush(self):
-        # process = subprocess.Popen([
-        #     "ffmpeg", "-hide_banner", "-loglevel", "error",
-        #     # "-i", f"concat:{'|'.join(self.segments)}",
-        #     "-i", "\"concat:snippets/2025-11-19_20-38-17.mts|snippets/2025-11-19_20-38-22.mts|snippets/2025-11-19_20-38-26.mts|snippets/2025-11-19_20-38-30.mts\"",
-        #     "-c:v", "copy", self.target_file
-        # ])
-        # print(" ".join([
-        #     "ffmpeg", "-hide_banner", "-loglevel", "error",
-        #     "-i", f"'concat:{'|'.join(self.segments)}'",
-        #     "-c:v", "copy", self.target_file
-        # ]))
+        if not output_video:
+            return
 
         ## Create file list
         filelist = f"flush_files.txt"
         with open(filelist, "w") as f:
             for segment in self.segments:
                 f.write(f"file '{segment}'\n")
-
-        ## Wait until all files are ready
-        # pending = self.segments
-        # while len(pending) != 0:
-        #     print(pending, os.path.exists(pending[0]))
-        #     # pending = list(filter(lambda file: os.path.exists(file), pending))
-        #     pending = [file for file in pending if not os.path.exists(file)]
-
 
         process = subprocess.Popen([
             "ffmpeg", "-hide_banner", "-loglevel", "error",
@@ -152,6 +145,9 @@ class SnippetCollection:
 
 class FFmpegVideoWriter:
     def __init__(self, filepath: str, width: int, height: int, fps: int):
+        if not output_video:
+            return
+
         self.process = subprocess.Popen([
             "ffmpeg", "-hide_banner", "-loglevel", "error",
             "-f", "rawvideo", "-r", str(fps), "-pix_fmt", "bgr24", "-s", f"{width}x{height}", "-i", "pipe:0",
@@ -159,9 +155,15 @@ class FFmpegVideoWriter:
         ], stdin=subprocess.PIPE)
 
     def write(self, image: np.typing.NDArray[np.uint8]):
+        if not output_video:
+            return
+
         self.process.stdin.write(image.tobytes())
 
     def release(self):
+        if not output_video:
+            return
+
         self.process.stdin.close()
         self.process.wait()
 
@@ -210,11 +212,6 @@ def run_capture(collection: SnippetCollection):
                 writer.release()
 
             filepath = f"snippets/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.mts"
-            # writer = cv2.VideoWriter(
-            #     filename=filepath, 
-            #     fourcc=cv2.VideoWriter_fourcc(*"H264"), 
-            #     fps=src_fps,
-            #     frameSize=(src_width, src_height))
             writer = FFmpegVideoWriter(filepath, src_width, src_height, src_fps)
             snippet_count = 0
             collection.next_snippet(filepath)
@@ -279,81 +276,18 @@ def run_capture(collection: SnippetCollection):
 
 def main():
     if debug_mode:
-        cv2.namedWindow(window_normal, cv2.WINDOW_NORMAL)
         cv2.namedWindow(window_diff, cv2.WINDOW_NORMAL)
+        cv2.namedWindow(window_normal, cv2.WINDOW_NORMAL)
     
     collection = SnippetCollection()
 
-    while True:
-    # if True:
+    # while True:
+    if True:
         print(f"Attemping capture on {datetime.now()}")
         try:
             run_capture(collection)
         except Exception as e:
             print(f"Unexpected exception: {e}")
-
-    # # stream = cv2.VideoCapture("showdown.avi")
-    # writer = None
-
-    # # stream = cv2.VideoCapture("file.cgi")
-
-    # img_accum = None
-    # prev_img = None
-    # prev_ts = None
-
-    # non_zero_accum = 0
-    # fail_count = 0
-
-    # fgbg = cv2.createBackgroundSubtractorMOG2(history=500, varThreshold=16, detectShadows=False)
-    
-    # while True:
-       
-
-        
-        
-    #     alpha, prev_ts = util.get_alpha(prev_ts)
-
-    #     if img_accum is None:
-    #         img_accum = np.empty(np.shape(frame))
-    #     if prev_img is None:
-    #         prev_img = frame
-    #         continue
-        
-    #     # img_diff = cv2.absdiff(img_accum.astype(frame.dtype), frame)
-    #     # cv2.accumulateWeighted(frame, img_accum, alpha)
-
-    #     img_diff = cv2.absdiff(prev_img, frame)
-    #     # img_diff = fgbg.apply(frame)
-    #     # img_diff = cv2.GaussianBlur(img_diff, (5, 5), 1)
-    #     prev_img = frame
-
-    #     # blur = cv2.GaussianBlur(img_diff, (9, 9), 0)
-    #     # img_diff = cv2.addWeighted(img_diff, 1.5, blur, -0.5, 0)
-
-
-    #     alpha = 0.1
-    #     img_max = np.max(img_diff)
-    #     if img_max < 70:
-    #         print("Nothing")
-    #         non_zero_accum = non_zero_accum * (1 - alpha)
-    #     else:
-    #         _, img_diff = cv2.threshold(img_diff, img_max * 0.5, 255, cv2.THRESH_BINARY)
-    #         non_zero = np.count_nonzero(img_diff)
-    #         non_zero_accum = non_zero_accum * (1 - alpha) + non_zero * alpha
-
-    #         if non_zero_accum > 200:
-    #             print(f"ZUG!! Max: {img_max} || Non-Zero: {non_zero} // {non_zero_accum} || Alpha: {alpha}")
-    #         else:
-    #             print(f"Max: {img_max} || Non-Zero: {non_zero} // {non_zero_accum} || Alpha: {alpha}")
-        
-        
-    #     # img_avg = np.average(img_diff)
-    #     # print(f"{img_avg} => {img_avg >= 3} || Mean: {np.mean(img_diff)} || Max: {np.max(img_diff)} || 99%: {np.percentile(img_diff, 0.99)}")
-
-        
-    #     cv2.imshow('diff average 1', img_diff)
-    #     cv2.imshow('diff average 2', frame)
-    #     cv2.waitKey(1)
 
 if __name__ == "__main__":
     main()
