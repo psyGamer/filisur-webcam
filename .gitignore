@@ -1,0 +1,11 @@
+__pycache__
+
+# Destination directories
+snippets
+videos
+
+# Video files
+*.cgi
+*.avi
+*.mts
+*.mp4
