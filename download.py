@@ -19,16 +19,16 @@ video_source = webcam_url
 # video_source = "videos/2025-11-20_05-55-30.mp4" ## Ausfahrt Gleis. 1 -> Chur
 
 ## False Positives
-video_source = "false_positive/2025-11-21_00-16-05.mp4"
-video_source = "false_positive/2025-11-20_18-56-16.mp4"
-video_source = "false_positive/2025-11-21_00-21-12.mp4"
-video_source = "false_positive/2025-11-21_01-08-03.mp4"
-video_source = "false_positive/2025-11-21_02-57-40.mp4"
-video_source = "false_positive/2025-11-21_03-20-12.mp4"
-video_source = "false_positive/2025-11-21_03-04-08.mp4"
+# video_source = "false_positive/2025-11-21_00-16-05.mp4"
+# video_source = "false_positive/2025-11-20_18-56-16.mp4"
+# video_source = "false_positive/2025-11-21_00-21-12.mp4"
+# video_source = "false_positive/2025-11-21_01-08-03.mp4"
+# video_source = "false_positive/2025-11-21_02-57-40.mp4"
+# video_source = "false_positive/2025-11-21_03-20-12.mp4"
+# video_source = "false_positive/2025-11-21_03-04-08.mp4"
 
 ## Real Trains
-video_source = "real_videos/2025-11-21_05-54-56.mp4"
+# video_source = "real_videos/2025-11-21_05-54-56.mp4"
 # video_source = "real_videos/2025-11-21_06-14-23.mp4"
 # video_source = "real_videos/2025-11-21_07-59-24.mp4"
 # video_source = "real_videos/2025-11-21_08-01-08.mp4"
@@ -36,6 +36,8 @@ video_source = "real_videos/2025-11-21_05-54-56.mp4"
 ## Tests
 # video_source = "test_data/showdown_17.avi"
 # video_source = "test_data/night_switch.mts"
+
+# video_source = "videos/2025-11-21_20-00-48.mp4"
 
 window_normal = "Normal"
 window_diff   = "Difference"
@@ -67,12 +69,9 @@ class Area:
     skip_start_buffer: bool = False
 
     mask_image: np.typing.NDArray[np.uint8] = None
-    mask_percentage: float = 0.0
     mask_area: int = 0
 
     computed_points: np.typing.NDArray[np.int32] = None
-    
-    average_area_sum: float = None
 
     def compute(self, width: int, height: int):
         self.computed_points = np.array([[np.int32(point[0] * width), np.int32(point[1] * height)] for point in self.points], np.int32)
@@ -83,51 +82,17 @@ class Area:
 
         self.mask_area = np.count_nonzero(self.mask_image)
 
-        # print(width*height, np.sum(self.mask_image == (255, 255, 255)), (full_mask == (255, 255, 255)).sum())
-        # self.mask_percentage = np.sum(cv2.bitwise_and(self.mask_image, full_mask) == (255, 255, 255)) / np.sum(full_mask == (255, 255, 255))
-        self.mask_percentage = 1
-
 
     def trigger_check(self, image_diff: np.typing.NDArray, diff_sum: float, update: bool) -> bool:
         area_diff = cv2.bitwise_and(image_diff, self.mask_image)
         area_sum = np.sum(area_diff)
 
         if update:
-            if self.average_area_sum is None:
-                self.average_area_sum = area_sum
-            else:
-                alpha = 0.1
-                self.average_area_sum = (1.0 - alpha)*self.average_area_sum + alpha*area_sum
-
-            # print(f"- {area_sum}/{self.trigger_threshold}  ({self.average_area_sum} // {abs(self.average_area_sum - area_sum)})  =>  {area_sum/diff_sum*100}% // {self.mask_percentage*100}%")
-            # print(f"- {area_sum}/{self.trigger_threshold} ({area_sum/self.trigger_threshold*100:.2f}%) // {np.count_nonzero(area_diff)}/{self.mask_area} ({np.count_nonzero(area_diff)/self.mask_area*100:.2f}%)  ==>  {area_sum * (np.count_nonzero(area_diff)/self.mask_area):.0f}")
+            print(f"- {area_sum}/{self.trigger_threshold} ({area_sum/self.trigger_threshold*100:.2f}%) // {np.count_nonzero(area_diff)}/{self.mask_area} ({np.count_nonzero(area_diff)/self.mask_area*100:.2f}%)  ==>  {area_sum * (np.count_nonzero(area_diff)/self.mask_area):.0f}")
 
         return area_sum >= self.trigger_threshold and np.count_nonzero(area_diff)/self.mask_area >= self.trigger_area_percentage
-        # return area_sum >= self.trigger_threshold and area_sum/diff_sum >= self.mask_percentage*0.9
 
 scan_areas = [
-    ## Bahnsteig Richtung St. Moritz (Gleis 1-3)
-    # Area(
-    #     points=[(0.85, 1.0), (1.0, 1.0), (1.0, 0.69), (0.75, 0.60), (0.64, 0.75)],
-    #     trigger_threshold=200_000,
-    #     trigger_area_percentage=1.0,
-    # ),
-
-    # ## Bahnsteig Richtung Chur (Gleis 2)
-    # Area(
-    #     points=[(0.77, 0.67), (0.68, 0.67), (0.49, 0.55), (0.54, 0.55)],
-    #     trigger_threshold=100_000,
-    #     trigger_area_percentage=0.1,
-    # ),
-
-    # ## TODO: Erkennt bei Nacht (und vllt. auch Tag) schlecht langsame Züge
-    # ## Bahnsteig Richtung Chur (Gleis 1)
-    # Area(
-    #     points=[(0.64, 0.75), (0.50, 0.60), (0.50, 0.55), (0.68, 0.67)],
-    #     trigger_threshold=30_000, #20_000
-    #     trigger_area_percentage=1.0,
-    # ),
-
     ## Gleis 1 (Edge)
     Area(
         points=[(0.50, 0.60), (0.50, 0.62), (0.82, 1.0), (0.86, 1.0)],
@@ -142,39 +107,41 @@ scan_areas = [
         trigger_area_percentage=0.1,
     ),
 
-    # Area(
-    #     points=[(0.78, 0.67), (0.68, 0.67), (0.49, 0.55), (0.54, 0.55)],
-    #     trigger_threshold=120_000,
-    #     trigger_area_percentage=0.2,
-    # ),
-
     ## Bahnsteig Gleis 2 (Top - Richtung Chur)
     Area(
-        points=[(0.64, 0.59), (0.57, 0.59), (0.49, 0.55), (0.54, 0.55)],
+        points=[(0.61, 0.59), (0.55, 0.59), (0.50, 0.56), (0.535, 0.56)],
         trigger_threshold=45_000,
         trigger_area_percentage=0.30,
         max_weather_noise=1_000_000,
     ),
     ## Bahnsteig Gleis 2 (Top - Mitte)
     Area(
-        points=[(0.68, 0.67), (0.78, 0.67), (0.64, 0.59), (0.57, 0.59)],
+        points=[(0.69, 0.67), (0.79, 0.67), (0.61, 0.59), (0.55, 0.59)],
         trigger_threshold=80_000,
         trigger_area_percentage=0.2,
         max_weather_noise=1_000_000,
     ),
     ## Bahnsteig Gleis 2 (Top - Richtung St. Moritz)
     Area(
-        points=[(0.78, 0.67), (0.68, 0.67), (1.0, 0.83), (1.0, 0.73)],
+        points=[(0.79, 0.67), (0.69, 0.67), (1.0, 0.83), (1.0, 0.73)],
         trigger_threshold=100_000,
         trigger_area_percentage=0.1,
     ),
 
-    ## Bahnsteig Gleis 1+2 (Floor - Richtung St. Moritz)
+    ## Bahnsteig Gleis 1+2 (Side - Richtung Chur)
     Area(
         points=[(0.81, 0.94), (0.87, 1.0), (1.0, 1.0), (1.0, 0.92), (0.92, 0.87)],
         trigger_threshold=400_000,
         trigger_area_percentage=0.3,
         skip_start_buffer=True
+    ),
+    ## Bahnsteig Gleis 1+2 (Floor - Richtung St. Moritz)
+    Area(
+        points=[(0.50, 0.56), (0.50, 0.62), (0.54, 0.66), (0.54, 0.59)],
+        trigger_threshold=20_000,
+        trigger_area_percentage=0.2,
+        max_weather_noise=500_000,
+        skip_start_buffer=True,
     ),
 ]
 
@@ -314,11 +281,11 @@ def run_capture(collection: SnippetCollection):
     weather_mask = None
 
     prev_image = None
-    prev_accum = None
 
     ## Debug controls
     auto_playback = True
-    auto_pause = True
+    auto_pause = False
+    auto_fastforward = False
 
     while True:
         ## Capture current
@@ -369,61 +336,59 @@ def run_capture(collection: SnippetCollection):
         writer.write(curr_image)
         snippet_count += 1
 
-        # if prev_accum is None:
-        #     prev_accum = curr_image.copy()
-
-        # alpha = 0.01
-        # prev_accum = (prev_accum*(1 - alpha) + curr_image*alpha).astype(np.uint8)
-
         if check_counter > 0:
             check_counter -= 1
 
-            if not debug_mode:
+            if not debug_mode or (auto_fastforward and auto_playback):
                 continue
 
             image_diff = cv2.absdiff(prev_image, curr_image)
             image_diff[image_diff < 50] = 0
 
             diff_sum = np.sum(image_diff)
+            weather_sum = np.sum(cv2.bitwise_and(image_diff, weather_mask))
 
-            # for area in scan_areas:
-            #     if debug_mode:
-            #         color = (0, 255, 0) if area.trigger_check(image_diff, diff_sum) else (255, 0, 0)
-            #         cv2.polylines(curr_image, [area.computed_points], isClosed=True, color=color, thickness=5)
+            for area in scan_areas:
+                if weather_sum >= area.max_weather_noise or (is_night and area.mode == DayMode.DAY) or (not is_night and area.mode == DayMode.NIGHT):
+                    cv2.polylines(curr_image, [area.computed_points], isClosed=True, color=(0, 0, 255), thickness=2)
+                else:
+                    color = (0, 255, 0) if area.trigger_check(image_diff, diff_sum, update=False) else (255, 0, 0)  
+                    cv2.polylines(curr_image, [area.computed_points], isClosed=True, color=color, thickness=2)
 
-            # cv2.imshow(window_normal, curr_image)
-            # cv2.waitKey(1)
-            # cv2.waitKey(1)
-            # cv2.waitKey(1)
-            # cv2.waitKey(1)
-            # cv2.waitKey(1)
+            cv2.imshow(window_normal, curr_image)
+            match cv2.waitKey(1):
+                case 112: # 'p'
+                    auto_playback = not auto_playback
+                    print(f"Toggled auto-playback to {auto_playback}")
+                case 97: # 'a'
+                    auto_pause = not auto_pause
+                    auto_fastforward = False
+                    print(f"Toggled auto-pause to {auto_pause}")
+                case 102: # 'f'
+                    auto_fastforward = not auto_fastforward
+                    auto_pause = True
+                    print(f"Toggled auto-fastforward to {auto_fastforward}")
+
+            cv2.waitKey(1)
+            cv2.waitKey(1)
+            cv2.waitKey(1)
+            cv2.waitKey(1)
             continue
         else:
             check_counter = check_time
-            # while cv2.waitKey(1) != 27:
-            #     pass
 
         ## Detect difference
         if prev_image is None:
             prev_image = curr_image
-            # prev_accum = np.empty(np.shape(curr_image))
             continue
-
-        # cv2.accumulateWeighted(curr_image, prev_accum, alpha=0.1)
-        
 
         image_diff = cv2.absdiff(prev_image, curr_image)
         image_diff[image_diff < 15] = 0
         prev_image = curr_image
 
-        # cv2.accumulateWeighted(image_diff, prev_accum, alpha=0.1)
-
-        # accum_diff = cv2.absdiff(prev_accum, curr_image)
-        # accum_diff[image_diff < 50] = 0
-
         diff_sum = np.sum(image_diff)
         weather_sum = np.sum(cv2.bitwise_and(image_diff, weather_mask))
-        # print(diff_sum, weather_sum)
+        print(weather_sum)
 
         # Check for night-vision
         if night_check_counter <= 0 or diff_sum >= 50_000_000:
@@ -447,7 +412,7 @@ def run_capture(collection: SnippetCollection):
         ## Analyse areas
         any_active = False
         should_skip_start_buffer = False
-        # print("===")
+        print("===")
         for area in scan_areas:
             if weather_sum >= area.max_weather_noise or (is_night and area.mode == DayMode.DAY) or (not is_night and area.mode == DayMode.NIGHT):
                 if debug_mode:
@@ -476,22 +441,42 @@ def run_capture(collection: SnippetCollection):
 
         ## Show window
         if debug_mode:
+            if auto_fastforward and auto_playback:
+                continue
+
             cv2.imshow(window_normal, curr_image)
             cv2.imshow(window_diff, dbg)
+
             match cv2.waitKey(1):
                 case 112: # 'p'
                     auto_playback = not auto_playback
+                    print(f"Toggled auto-playback to {auto_playback}")
                 case 97: # 'a'
                     auto_pause = not auto_pause
+                    auto_fastforward = False
+                    print(f"Toggled auto-pause to {auto_pause}")
+                case 102: # 'f'
+                    auto_fastforward = not auto_fastforward
+                    auto_pause = True
+                    print(f"Toggled auto-fastforward to {auto_fastforward}")
             if not auto_playback:
                 while True:
                     match cv2.waitKey(1):
                         case 112: # 'p'
                             auto_playback = True
+                            print(f"Toggled auto-playback to {auto_playback}")
                             break
+                        case 97: # 'a'
+                            auto_pause = not auto_pause
+                            auto_fastforward = False
+                            print(f"Toggled auto-pause to {auto_pause}")
+                        case 102: # 'f'
+                            auto_fastforward = not auto_fastforward
+                            auto_pause = True
+                            print(f"Toggled auto-fastforward to {auto_fastforward}")
                         case 27: # ESC
                             break
-
+            
             cv2.waitKey(1)
             cv2.waitKey(1)
             cv2.waitKey(1)
@@ -509,8 +494,8 @@ def main():
     
     collection = SnippetCollection()
 
-    # while True:
-    if True:
+    while True:
+    # if True:
         print(f"Attemping capture on {datetime.now()}")
         try:
             run_capture(collection)
