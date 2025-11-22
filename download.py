@@ -28,7 +28,7 @@ video_source = webcam_url
 # video_source = "false_positive/2025-11-21_03-04-08.mp4"
 
 ## False Negative
-# video_source = "false_negative/2025-11-21_21-40-41.mp4"
+video_source = "false_negative/2025-11-21_22-02-10.mts"
 
 ## Real Trains
 # video_source = "real_videos/2025-11-21_05-54-56.mp4"
@@ -40,7 +40,7 @@ video_source = webcam_url
 # video_source = "test_data/showdown_18.avi"
 # video_source = "test_data/night_switch.mts"
 
-# video_source = "videos/2025-11-21_21-01-59.mp4"
+# video_source = "videos/2025-11-21_23-05-20.mp4"
 
 window_normal = "Normal"
 window_diff   = "Difference"
@@ -54,7 +54,7 @@ weather_check_area_pt1 = (0.25, 0.17)
 weather_check_area_pt2 = (0.75, 0.48)
 
 debug_mode = True
-debug_log = False
+debug_log = True
 output_video = video_source == webcam_url or not debug_mode
 
 class DayMode(Enum):
@@ -115,7 +115,7 @@ scan_areas = [
     Area(
         points=[(0.50, 0.60), (0.50, 0.62), (0.67, 0.82), (0.67, 0.78)],
         triggers=[
-            Condition(threshold=15_000, area_percent=0.10, max_weather_noise=50_000),
+            Condition(threshold=15_000, area_percent=0.075, max_weather_noise=50_000),
             Condition(threshold=35_000, area_percent=0.15),
         ],
         # mode=DayMode.NIGHT
@@ -124,6 +124,7 @@ scan_areas = [
     Area(
         points=[(0.56, 0.63), (0.56, 0.65), (0.67, 0.73), (0.67, 0.71)],
         triggers=[
+            Condition(threshold=5_000, area_percent=0.05, max_weather_noise=10_000),
             Condition(threshold=20_000, area_percent=0.10, max_weather_noise=50_000),
             Condition(threshold=50_000, area_percent=0.1),
         ],
@@ -134,6 +135,7 @@ scan_areas = [
     Area(
         points=[(0.61, 0.59), (0.55, 0.59), (0.50, 0.56), (0.535, 0.56)],
         triggers=[
+            Condition(threshold=5_000, area_percent=0.05, max_weather_noise=10_000),
             Condition(threshold=10_000, area_percent=0.15, max_weather_noise=50_000),
             Condition(threshold=45_000, area_percent=0.3, max_weather_noise=1_000_000),
         ],
@@ -142,6 +144,7 @@ scan_areas = [
     Area(
         points=[(0.69, 0.67), (0.79, 0.67), (0.61, 0.59), (0.55, 0.59)],
         triggers=[
+            Condition(threshold=10_000, area_percent=0.05, max_weather_noise=10_000),
             Condition(threshold=20_000, area_percent=0.1, max_weather_noise=50_000),
             Condition(threshold=80_000, area_percent=0.2, max_weather_noise=1_000_000),
         ],
@@ -412,7 +415,7 @@ def run_capture(collection: SnippetCollection):
             continue
 
         image_diff = cv2.absdiff(prev_image, curr_image)
-        image_diff[image_diff < 15] = 0
+        image_diff[image_diff < 20] = 0
         prev_image = curr_image
 
         diff_sum = np.sum(image_diff)
