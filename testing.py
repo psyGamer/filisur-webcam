@@ -17,7 +17,7 @@ class TestingSnippetCollection:
     def __post_init__(self):
         self.actual_spans = []
 
-    def start_recording(self, time: float):
+    def start_recording(self, time: float, _: bool):
         self.recording = True
         self.start_time = time
 
@@ -35,18 +35,20 @@ class TestingSnippetCollection:
 def main():
     download.output_video = False
     download.debug_mode = False
+    download.debug_log = False
 
     ## Check false positives
-    for file in os.listdir("false_positive"):
-        collection = TestingSnippetCollection([])
+    for dir in ["difficult_false_positives"]:
+        for file in os.listdir(dir):
+            collection = TestingSnippetCollection([])
 
-        download.video_source = f"false_positive/{file}"
-        download.run_capture(collection)
+            download.video_source = f"{dir}/{file}"
+            download.run_capture(collection)
 
-        if len(collection.actual_spans) != 0 or collection.recording:
-            rich.print(f"[bold red]✕ FAILED[/bold red] [red]{rich.markup.escape(file)}")
-        else:
-            rich.print(f"[bold green]✓ PASSED[/bold green] [green]{rich.markup.escape(file)}")
+            if len(collection.actual_spans) != 0 or collection.recording:
+                rich.print(f"[bold red]✕ FAILED[/bold red] [red]{rich.markup.escape(file)}")
+            else:
+                rich.print(f"[bold green]✓ PASSED[/bold green] [green]{rich.markup.escape(file)}")
 
 if __name__ == "__main__":
     main()

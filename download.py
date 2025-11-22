@@ -1,5 +1,4 @@
 import os
-import sys
 import subprocess
 from datetime import datetime
 from dataclasses import dataclass
@@ -7,7 +6,6 @@ from enum import Enum
 
 import numpy as np
 import cv2
-import util
 
 webcam_url = "https://grischuna-cam.weta.ch/cgi-bin/mjpg/video.cgi?channel=0&subtype=1"
 
@@ -25,10 +23,10 @@ video_source = webcam_url
 # video_source = "false_positive/2025-11-21_01-08-03.mp4"
 # video_source = "false_positive/2025-11-21_02-57-40.mp4"
 # video_source = "false_positive/2025-11-21_03-20-12.mp4"
-# video_source = "false_positive/2025-11-21_03-04-08.mp4"
+# video_source = "false_positive/2025-11-21_04-15-11.mp4"
 
 ## False Negative
-video_source = "false_negative/2025-11-21_22-02-10.mts"
+# video_source = "false_negative/2025-11-21_22-02-10.mts"
 
 ## Real Trains
 # video_source = "real_videos/2025-11-21_05-54-56.mp4"
@@ -40,7 +38,11 @@ video_source = "false_negative/2025-11-21_22-02-10.mts"
 # video_source = "test_data/showdown_18.avi"
 # video_source = "test_data/night_switch.mts"
 
-# video_source = "videos/2025-11-21_23-05-20.mp4"
+# video_source = "videos/2025-11-22_11-58-36.mp4"
+# video_source = "videos/2025-11-22_12-04-22.mp4"
+# video_source = "real_videos/2025-11-20_22-03-13.mts"
+# video_source = "real_videos/2025-11-21_23-05-20.mp4"
+# video_source = "videos/2025-11-22_13-58-49.mp4"
 
 window_normal = "Normal"
 window_diff   = "Difference"
@@ -53,8 +55,10 @@ minimum_recording_duration = 3.0
 weather_check_area_pt1 = (0.25, 0.17)
 weather_check_area_pt2 = (0.75, 0.48)
 
-debug_mode = True
-debug_log = True
+last_image_write = None
+
+debug_mode = False
+debug_log = False
 output_video = video_source == webcam_url or not debug_mode
 
 class DayMode(Enum):
@@ -68,6 +72,7 @@ class Condition:
     area_percent: float
 
     max_weather_noise: int = 2**64
+    max_sky_light: int = 2**64
 
 @dataclass
 class Area:
@@ -92,12 +97,12 @@ class Area:
         self.mask_area = np.count_nonzero(self.mask_image)
 
 
-    def trigger_check(self, image_diff: np.typing.NDArray, weather_noise: float, update: bool) -> bool:
+    def trigger_check(self, image_diff: np.typing.NDArray, weather_noise: float, sky_light: float, update: bool) -> bool:
         area_diff = cv2.bitwise_and(image_diff, self.mask_image)
         area_sum = np.sum(area_diff)
 
         for condition in self.triggers:
-            if weather_noise > condition.max_weather_noise:
+            if weather_noise > condition.max_weather_noise or sky_light > condition.max_sky_light:
                 continue
 
             if debug_log and update:
@@ -115,17 +120,18 @@ scan_areas = [
     Area(
         points=[(0.50, 0.60), (0.50, 0.62), (0.67, 0.82), (0.67, 0.78)],
         triggers=[
-            Condition(threshold=15_000, area_percent=0.075, max_weather_noise=50_000),
-            Condition(threshold=35_000, area_percent=0.15),
+            Condition(threshold=15_000, area_percent=0.10, max_weather_noise=50_000, max_sky_light=20_000_000),
+            Condition(threshold=35_000, area_percent=0.15, max_weather_noise=750_000),
+            Condition(threshold=50_000, area_percent=0.20, max_weather_noise=900_000),
+            Condition(threshold=75_000, area_percent=0.30),
         ],
-        # mode=DayMode.NIGHT
     ),
     ## Gleis 2 (Edge)
     Area(
         points=[(0.56, 0.63), (0.56, 0.65), (0.67, 0.73), (0.67, 0.71)],
         triggers=[
-            Condition(threshold=5_000, area_percent=0.05, max_weather_noise=10_000),
-            Condition(threshold=20_000, area_percent=0.10, max_weather_noise=50_000),
+            Condition(threshold=5_000, area_percent=0.05, max_weather_noise=10_000, max_sky_light=20_000_000),
+            Condition(threshold=25_000, area_percent=0.05, max_weather_noise=50_000),
             Condition(threshold=50_000, area_percent=0.1),
         ],
         skip_start_buffer=True,
@@ -135,8 +141,8 @@ scan_areas = [
     Area(
         points=[(0.61, 0.59), (0.55, 0.59), (0.50, 0.56), (0.535, 0.56)],
         triggers=[
-            Condition(threshold=5_000, area_percent=0.05, max_weather_noise=10_000),
-            Condition(threshold=10_000, area_percent=0.15, max_weather_noise=50_000),
+            Condition(threshold=5_000, area_percent=0.05, max_weather_noise=10_000, max_sky_light=20_000_000),
+            Condition(threshold=20_000, area_percent=0.15, max_weather_noise=50_000),
             Condition(threshold=45_000, area_percent=0.3, max_weather_noise=1_000_000),
         ],
     ),
@@ -144,7 +150,7 @@ scan_areas = [
     Area(
         points=[(0.69, 0.67), (0.79, 0.67), (0.61, 0.59), (0.55, 0.59)],
         triggers=[
-            Condition(threshold=10_000, area_percent=0.05, max_weather_noise=10_000),
+            Condition(threshold=10_000, area_percent=0.05, max_weather_noise=10_000, max_sky_light=20_000_000),
             Condition(threshold=20_000, area_percent=0.1, max_weather_noise=50_000),
             Condition(threshold=80_000, area_percent=0.2, max_weather_noise=1_000_000),
         ],
@@ -170,12 +176,8 @@ scan_areas = [
     Area(
         points=[(0.50, 0.56), (0.50, 0.62), (0.54, 0.66), (0.54, 0.59)],
         triggers=[
-            ## Tag
-            ## 30_000 / 30%
-
-            ## Nacht
-            Condition(threshold=15_000, area_percent=0.1, max_weather_noise=5_000),
-            Condition(threshold=20_000, area_percent=0.2, max_weather_noise=500_000),
+            Condition(threshold=15_000, area_percent=0.1, max_weather_noise=5_000, max_sky_light=20_000_000),
+            Condition(threshold=20_000, area_percent=0.2, max_weather_noise=300_000),
         ],
         skip_start_buffer=True,
     ),
@@ -202,7 +204,7 @@ class SnippetCollection:
     def start_recording(self, time: float, skip_start_buffer: bool):
         print(f"== Started Recording at {datetime.now()} ==")
         if len(self.segments) == 0:
-            if skip_start_buffer or not self.previous_file:
+            if True or skip_start_buffer or not self.previous_file:
                 self.segments = [self.current_file]
             else:
                 self.segments = [self.previous_file, self.current_file]
@@ -360,7 +362,14 @@ def run_capture(collection: SnippetCollection):
             if writer:
                 writer.release()
 
-            filepath = f"snippets/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.mts"
+            now = datetime.now()
+            hourly_now = now.replace(minute=0, second=0, microsecond=0)
+            global last_image_write
+            if output_video and (last_image_write is None or last_image_write != hourly_now):
+                last_image_write = hourly_now
+                cv2.imwrite(f"images/{now.strftime('%Y-%m-%d_%H-%M-%S')}.png", curr_image)
+
+            filepath = f"snippets/{now.strftime('%Y-%m-%d_%H-%M-%S')}.mts"
             writer = FFmpegVideoWriter(filepath, src_width, src_height, src_fps)
             snippet_count = 0
             collection.next_snippet(filepath)
@@ -379,12 +388,13 @@ def run_capture(collection: SnippetCollection):
 
             diff_sum = np.sum(image_diff)
             weather_sum = np.sum(cv2.bitwise_and(image_diff, weather_mask))
+            sky_sum = np.sum(cv2.bitwise_and(curr_image, weather_mask))
 
             for area in scan_areas:
                 if (is_night and area.mode == DayMode.DAY) or (not is_night and area.mode == DayMode.NIGHT):
                     cv2.polylines(curr_image, [area.computed_points], isClosed=True, color=(0, 0, 255), thickness=2)
                 else:
-                    color = (0, 255, 0) if area.trigger_check(image_diff, weather_sum, update=False) else (255, 0, 0)  
+                    color = (0, 255, 0) if area.trigger_check(image_diff, weather_sum, sky_sum, update=False) else (255, 0, 0)  
                     cv2.polylines(curr_image, [area.computed_points], isClosed=True, color=color, thickness=2)
 
             cv2.imshow(window_normal, curr_image)
@@ -420,6 +430,7 @@ def run_capture(collection: SnippetCollection):
 
         diff_sum = np.sum(image_diff)
         weather_sum = np.sum(cv2.bitwise_and(image_diff, weather_mask))
+        sky_sum = np.sum(cv2.bitwise_and(curr_image, weather_mask))
 
         # Check for night-vision
         if night_check_counter <= 0 or diff_sum >= 50_000_000:
@@ -441,7 +452,7 @@ def run_capture(collection: SnippetCollection):
         dbg = image_diff.copy()
 
         if debug_log:
-            print(f"=== {diff_sum} // {weather_sum} ===")
+            print(f"=== {diff_sum} // {weather_sum} // {sky_sum} ===")
 
         ## Analyse areas
         any_active = False
@@ -453,7 +464,7 @@ def run_capture(collection: SnippetCollection):
                     cv2.polylines(dbg, [area.computed_points], isClosed=True, color=(0, 0, 255), thickness=2)
                 continue
 
-            area_triggered = area.trigger_check(image_diff, weather_sum, update=True)
+            area_triggered = area.trigger_check(image_diff, weather_sum, sky_sum, update=True)
 
             if area_triggered:
                 any_active = True
