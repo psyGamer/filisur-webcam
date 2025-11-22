@@ -27,6 +27,9 @@ video_source = webcam_url
 # video_source = "false_positive/2025-11-21_03-20-12.mp4"
 # video_source = "false_positive/2025-11-21_03-04-08.mp4"
 
+## False Negative
+# video_source = "false_negative/2025-11-21_21-40-41.mp4"
+
 ## Real Trains
 # video_source = "real_videos/2025-11-21_05-54-56.mp4"
 # video_source = "real_videos/2025-11-21_06-14-23.mp4"
@@ -34,10 +37,10 @@ video_source = webcam_url
 # video_source = "real_videos/2025-11-21_08-01-08.mp4"
 
 ## Tests
-# video_source = "test_data/showdown_17.avi"
+# video_source = "test_data/showdown_18.avi"
 # video_source = "test_data/night_switch.mts"
 
-# video_source = "videos/2025-11-21_20-00-48.mp4"
+# video_source = "videos/2025-11-21_21-01-59.mp4"
 
 window_normal = "Normal"
 window_diff   = "Difference"
@@ -51,6 +54,7 @@ weather_check_area_pt1 = (0.25, 0.17)
 weather_check_area_pt2 = (0.75, 0.48)
 
 debug_mode = True
+debug_log = False
 output_video = video_source == webcam_url or not debug_mode
 
 class DayMode(Enum):
@@ -59,13 +63,18 @@ class DayMode(Enum):
     NIGHT = 2
 
 @dataclass
+class Condition:
+    threshold: int
+    area_percent: float
+
+    max_weather_noise: int = 2**64
+
+@dataclass
 class Area:
     points: list[tuple[float, float]]
-    trigger_threshold: int
-    trigger_area_percentage: float
+    triggers: list[Condition]
 
     mode: DayMode = DayMode.BOTH
-    max_weather_noise: int = 2**64
     skip_start_buffer: bool = False
 
     mask_image: np.typing.NDArray[np.uint8] = None
@@ -83,64 +92,88 @@ class Area:
         self.mask_area = np.count_nonzero(self.mask_image)
 
 
-    def trigger_check(self, image_diff: np.typing.NDArray, diff_sum: float, update: bool) -> bool:
+    def trigger_check(self, image_diff: np.typing.NDArray, weather_noise: float, update: bool) -> bool:
         area_diff = cv2.bitwise_and(image_diff, self.mask_image)
         area_sum = np.sum(area_diff)
 
-        if update:
-            print(f"- {area_sum}/{self.trigger_threshold} ({area_sum/self.trigger_threshold*100:.2f}%) // {np.count_nonzero(area_diff)}/{self.mask_area} ({np.count_nonzero(area_diff)/self.mask_area*100:.2f}%)  ==>  {area_sum * (np.count_nonzero(area_diff)/self.mask_area):.0f}")
+        for condition in self.triggers:
+            if weather_noise > condition.max_weather_noise:
+                continue
 
-        return area_sum >= self.trigger_threshold and np.count_nonzero(area_diff)/self.mask_area >= self.trigger_area_percentage
+            if debug_log and update:
+                print(f"- {area_sum}/{condition.threshold} ({area_sum/condition.threshold*100:.2f}%) // {np.count_nonzero(area_diff)}/{self.mask_area} ({np.count_nonzero(area_diff)/self.mask_area*100:.2f}%)  ==>  {area_sum * (np.count_nonzero(area_diff)/self.mask_area):.0f}")
+
+            return area_sum >= condition.threshold and np.count_nonzero(area_diff)/self.mask_area >= condition.area_percent
+
+        if debug_log and update:
+            print(f"- DISABLED: {area_sum} // {np.count_nonzero(area_diff)}/{self.mask_area} ({np.count_nonzero(area_diff)/self.mask_area*100:.2f}%)  ==>  {area_sum * (np.count_nonzero(area_diff)/self.mask_area):.0f}")
+
+        return False
 
 scan_areas = [
     ## Gleis 1 (Edge)
     Area(
-        points=[(0.50, 0.60), (0.50, 0.62), (0.82, 1.0), (0.86, 1.0)],
-        trigger_threshold=70_000,
-        trigger_area_percentage=0.15,
-        mode=DayMode.NIGHT
+        points=[(0.50, 0.60), (0.50, 0.62), (0.67, 0.82), (0.67, 0.78)],
+        triggers=[
+            Condition(threshold=15_000, area_percent=0.10, max_weather_noise=50_000),
+            Condition(threshold=35_000, area_percent=0.15),
+        ],
+        # mode=DayMode.NIGHT
     ),
     ## Gleis 2 (Edge)
     Area(
-        points=[(0.56, 0.63), (0.56, 0.65), (1.0, 0.99), (1.0, 0.97)],
-        trigger_threshold=50_000,
-        trigger_area_percentage=0.1,
+        points=[(0.56, 0.63), (0.56, 0.65), (0.67, 0.73), (0.67, 0.71)],
+        triggers=[
+            Condition(threshold=20_000, area_percent=0.10, max_weather_noise=50_000),
+            Condition(threshold=50_000, area_percent=0.1),
+        ],
+        skip_start_buffer=True,
     ),
 
     ## Bahnsteig Gleis 2 (Top - Richtung Chur)
     Area(
         points=[(0.61, 0.59), (0.55, 0.59), (0.50, 0.56), (0.535, 0.56)],
-        trigger_threshold=45_000,
-        trigger_area_percentage=0.30,
-        max_weather_noise=1_000_000,
+        triggers=[
+            Condition(threshold=10_000, area_percent=0.15, max_weather_noise=50_000),
+            Condition(threshold=45_000, area_percent=0.3, max_weather_noise=1_000_000),
+        ],
     ),
     ## Bahnsteig Gleis 2 (Top - Mitte)
     Area(
         points=[(0.69, 0.67), (0.79, 0.67), (0.61, 0.59), (0.55, 0.59)],
-        trigger_threshold=80_000,
-        trigger_area_percentage=0.2,
-        max_weather_noise=1_000_000,
+        triggers=[
+            Condition(threshold=20_000, area_percent=0.1, max_weather_noise=50_000),
+            Condition(threshold=80_000, area_percent=0.2, max_weather_noise=1_000_000),
+        ],
     ),
     ## Bahnsteig Gleis 2 (Top - Richtung St. Moritz)
     Area(
         points=[(0.79, 0.67), (0.69, 0.67), (1.0, 0.83), (1.0, 0.73)],
-        trigger_threshold=100_000,
-        trigger_area_percentage=0.1,
+        triggers=[
+            Condition(threshold=100_000, area_percent=0.1)
+        ],
+        skip_start_buffer=True,
     ),
 
-    ## Bahnsteig Gleis 1+2 (Side - Richtung Chur)
-    Area(
-        points=[(0.81, 0.94), (0.87, 1.0), (1.0, 1.0), (1.0, 0.92), (0.92, 0.87)],
-        trigger_threshold=400_000,
-        trigger_area_percentage=0.3,
-        skip_start_buffer=True
-    ),
     ## Bahnsteig Gleis 1+2 (Floor - Richtung St. Moritz)
     Area(
+        points=[(0.68, 0.80), (0.87, 1.0), (1.0, 1.0), (1.0, 0.92), (0.68, 0.71)],
+        triggers=[
+            Condition(threshold=100_000, area_percent=0.05)
+        ],
+        skip_start_buffer=True
+    ),
+    ## Bahnsteig Gleis 1+2 (Side - Richtung Chur)
+    Area(
         points=[(0.50, 0.56), (0.50, 0.62), (0.54, 0.66), (0.54, 0.59)],
-        trigger_threshold=20_000,
-        trigger_area_percentage=0.2,
-        max_weather_noise=500_000,
+        triggers=[
+            ## Tag
+            ## 30_000 / 30%
+
+            ## Nacht
+            Condition(threshold=15_000, area_percent=0.1, max_weather_noise=5_000),
+            Condition(threshold=20_000, area_percent=0.2, max_weather_noise=500_000),
+        ],
         skip_start_buffer=True,
     ),
 ]
@@ -154,7 +187,6 @@ class SnippetCollection:
     target_file: str = None
 
     recording: bool = False
-    wait_for_last: bool = False
     segments: list[str] = None
     removal_queue: list[str] = None
 
@@ -171,10 +203,11 @@ class SnippetCollection:
                 self.segments = [self.current_file]
             else:
                 self.segments = [self.previous_file, self.current_file]
+
+            self.target_file = f"videos/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.mp4"
+            self.start_time = time
+
         self.recording = True
-        self.wait_for_last = False
-        self.target_file = f"videos/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.mp4"
-        self.start_time = time
 
     def stop_recording(self, time: float):
         if time - self.start_time < minimum_recording_duration:
@@ -185,7 +218,6 @@ class SnippetCollection:
             
         print(f"== Stopped Recording at {datetime.now()} ==")
         self.recording = False
-        self.wait_for_last = True
 
 
     def next_snippet(self, file: str):
@@ -199,9 +231,6 @@ class SnippetCollection:
 
         if self.recording:
             self.segments.append(file)
-        elif self.wait_for_last:
-            self.segments.append(file)
-            self.wait_for_last = False
         elif len(self.segments) != 0:
             self.flush()
         elif len(self.removal_queue) > 180 and output_video:
@@ -349,10 +378,10 @@ def run_capture(collection: SnippetCollection):
             weather_sum = np.sum(cv2.bitwise_and(image_diff, weather_mask))
 
             for area in scan_areas:
-                if weather_sum >= area.max_weather_noise or (is_night and area.mode == DayMode.DAY) or (not is_night and area.mode == DayMode.NIGHT):
+                if (is_night and area.mode == DayMode.DAY) or (not is_night and area.mode == DayMode.NIGHT):
                     cv2.polylines(curr_image, [area.computed_points], isClosed=True, color=(0, 0, 255), thickness=2)
                 else:
-                    color = (0, 255, 0) if area.trigger_check(image_diff, diff_sum, update=False) else (255, 0, 0)  
+                    color = (0, 255, 0) if area.trigger_check(image_diff, weather_sum, update=False) else (255, 0, 0)  
                     cv2.polylines(curr_image, [area.computed_points], isClosed=True, color=color, thickness=2)
 
             cv2.imshow(window_normal, curr_image)
@@ -388,7 +417,6 @@ def run_capture(collection: SnippetCollection):
 
         diff_sum = np.sum(image_diff)
         weather_sum = np.sum(cv2.bitwise_and(image_diff, weather_mask))
-        print(weather_sum)
 
         # Check for night-vision
         if night_check_counter <= 0 or diff_sum >= 50_000_000:
@@ -409,18 +437,20 @@ def run_capture(collection: SnippetCollection):
 
         dbg = image_diff.copy()
 
+        if debug_log:
+            print(f"=== {diff_sum} // {weather_sum} ===")
+
         ## Analyse areas
         any_active = False
         should_skip_start_buffer = False
-        print("===")
         for area in scan_areas:
-            if weather_sum >= area.max_weather_noise or (is_night and area.mode == DayMode.DAY) or (not is_night and area.mode == DayMode.NIGHT):
+            if (is_night and area.mode == DayMode.DAY) or (not is_night and area.mode == DayMode.NIGHT):
                 if debug_mode:
                     cv2.polylines(curr_image, [area.computed_points], isClosed=True, color=(0, 0, 255), thickness=2)
                     cv2.polylines(dbg, [area.computed_points], isClosed=True, color=(0, 0, 255), thickness=2)
                 continue
 
-            area_triggered = area.trigger_check(image_diff, diff_sum, update=True)
+            area_triggered = area.trigger_check(image_diff, weather_sum, update=True)
 
             if area_triggered:
                 any_active = True
