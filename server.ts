@@ -1,3 +1,5 @@
+import 'dotenv/config'
+
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -26,20 +28,19 @@ async function createServer() {
         try {
             let url = req.originalUrl;
       
-            let template = fs.readFileSync(
-              path.resolve(__dirname, "index.html"),
-              "utf-8"
-            );
-      
-            template = await vite.transformIndexHtml(url, template);
-            res.status(200).set({ "Content-Type": "text/html" }).end(template);
+            let template = fs.readFileSync(path.resolve(__dirname, "index.html"), "utf-8")
+            template = await vite.transformIndexHtml(url, template)
+
+            res.status(200).set({ "Content-Type": "text/html" }).end(template)
         } catch (e) {
-            vite.ssrFixStacktrace(e as Error);
-            next(e);
+            vite.ssrFixStacktrace(e as Error)
+            next(e)
         }
     })
 
-    app.listen(5173)
+    const PORT = 5173
+    console.log(`Running server on port ${PORT}`)
+    app.listen(PORT)
 }
 
 createServer()
