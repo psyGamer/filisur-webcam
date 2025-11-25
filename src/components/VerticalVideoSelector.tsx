@@ -4,15 +4,22 @@ import VideoButton from './VideoButton'
 
 import './VerticalVideoSelector.scss'
 
-function VerticalVideoSelector({ sources } : { sources: string[] }) {
-    const [selected, setSelected] = useState(0)
-    const [fadeClass, setFadeClass] = useState<string>("")
+function VerticalVideoSelector({ 
+    sources, 
+    selectedIndex = null, 
+    onSelectedChanged = null
+} : { 
+    sources: string[], 
+    selectedIndex?: number | null, 
+    onSelectedChanged?: ((index: number) => void) | null
+}) {
+    const [selected, setSelected] = useState(selectedIndex || 0)
 
     const selectorRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
 
     const element = 
-        <div className={`video-selector ${fadeClass}`} ref={selectorRef}>
+        <div className='video-selector' ref={selectorRef}>
             <div className="scroll-container" ref={containerRef}>
                 {sources.map((src, idx) => {
                     const style = { 
@@ -30,6 +37,7 @@ function VerticalVideoSelector({ sources } : { sources: string[] }) {
                             style={style} 
                             onClick={_ => {
                                 setSelected(idx)
+                                onSelectedChanged?.(idx)
                                 videoRef.current?.scrollIntoView({ behavior:"smooth", block: "center" })
                             }}
                         >
