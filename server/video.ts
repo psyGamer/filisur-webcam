@@ -37,6 +37,7 @@ router.get("/*path", async (req, res) => {
             'Content-Type': 'video/mp4',
             'Content-Length': chunkSize,
             'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+            'Cache-Control': 'public, max-age=604800, immutable',
             'Accept-Ranges': 'bytes',
         })
 
@@ -45,6 +46,7 @@ router.get("/*path", async (req, res) => {
         res.status(200).set({
             'Content-Type': 'video/mp4',
             'Content-Length': fileSize,
+            'Cache-Control': 'public, max-age=604800, immutable',
             'Accept-Ranges': 'bytes',
         })
 

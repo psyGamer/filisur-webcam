@@ -1,0 +1,70 @@
+.image-box {
+    position: relative;
+    width: 100%;
+
+    cursor: pointer;
+}
+.image-box .image {
+    width: 100%;
+    aspect-ratio: 4/3;
+
+    border-radius: var(--border-radius);
+    display: block;
+}
+.image-box img {
+    object-fit: cover;
+    object-position: 0 100%;
+}
+
+.loading {
+    display: block;
+    position: relative;
+    overflow: hidden;
+
+    background: linear-gradient(90deg, var(--background-loading) 0%, var(--background-loading) 40%, var(--background-loading-shimmer) 50%, var(--background-loading) 60%, var(--background-loading) 100%);
+    background-size: 200% 100%;
+    will-change: background-position;
+
+    animation: shimmer 1.5s linear infinite;
+}
+@keyframes shimmer {
+    0% { background-position: 200% 0 }
+    100% { background-position: -200% 0 }
+}
+@media (prefers-reduced-motion: reduce) {
+    .loading { animation:none }
+}
+
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;  
+    justify-content: flex-start;
+
+    padding-top: 0.75em;
+    padding-bottom: 1.5em;
+    border-radius: var(--border-radius);
+
+    /* Shadow onto the image */
+    background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.8) 0%,
+        rgba(0, 0, 0, 0.6) 60%,
+        rgba(0, 0, 0, 0) 100%
+    );
+
+    color: white;
+    line-height: 1.3;
+}
+
+.overlay p {
+    margin: 0;
+    text-align: center;
+
+    font-weight: bold;
+}

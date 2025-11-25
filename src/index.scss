@@ -1,0 +1,30 @@
+:root {
+    --text-highlight: #FFFFFF;
+
+    --color-primary: #1696d1;
+    --color-primary-hover: #4bc7e6;
+
+    --background-main: #121212;
+    --background-loading: #646464;
+    --background-loading-shimmer: #808080;
+    --background-error: #FF0000;
+
+    --border-radius: 2.25rem;
+}
+
+html {
+    font-size: 62.5%; /* 1rem = 10px by default */
+}
+body {
+    background-color: var(--background-main);
+
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    font-size: 1.6rem;
+    line-height: 1.5;
+    font-weight: 400;
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
