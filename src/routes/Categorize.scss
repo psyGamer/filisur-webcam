@@ -2,5 +2,16 @@
     width: 20rem;
     height: 100vh;
 
-    margin: 4rem 2rem;
+    padding: 0 2rem;
+}
+
+media-control-bar {
+    --padding-size: 0.75rem;
+}
+media-control-bar media-play-button {
+    padding-left: calc(var(--media-button-padding, var(--media-control-padding, 10px)) + var(--padding-size));
+    padding-bottom: calc(var(--media-button-padding, var(--media-control-padding, 10px)) + var(--padding-size));
+}
+media-control-bar media-playback-rate-menu-button {
+    padding-right: calc(var(--media-button-padding, var(--media-control-padding, 10px)) + var(--padding-size));
 }
