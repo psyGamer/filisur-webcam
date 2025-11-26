@@ -30,6 +30,7 @@ import {
 import VerticalVideoSelector from "../components/VerticalVideoSelector"
 
 import './Categorize.scss'
+import TrainDescription from "../components/TrainDescription";
 
 const useFetchPending = () => useQuery({
     queryKey: ['pending'],
@@ -108,7 +109,7 @@ function Categorize() {
                 display: 'flex',
             }}
         >
-            <VerticalVideoSelector sources={videos} selectedIndex={selectedIdx >= 0 ? selectedIdx : null} onSelectedChanged={idx => {
+            {/* <VerticalVideoSelector sources={videos} selectedIndex={selectedIdx >= 0 ? selectedIdx : null} onSelectedChanged={idx => {
                 const url = new URL(window.location.href)
                 url.searchParams.set("video", videos[idx])
                 window.history.pushState({}, "", url)
@@ -149,7 +150,9 @@ function Categorize() {
                     <MediaTimeDisplay showDuration />
                     <MediaPlaybackRateMenuButton invokeTarget='playback-menu' ref={playbackButtonRef} />
                 </MediaControlBar>
-            </MediaController>
+            </MediaController> */}
+
+            <TrainDescription></TrainDescription>
         </div>
     </>
 }

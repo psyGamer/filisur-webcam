@@ -1,10 +1,14 @@
 :root {
+    --text-main: #E0E0E0;
     --text-highlight: #FFFFFF;
 
-    --color-primary: #1696d1;
-    --color-primary-hover: #4bc7e6;
+    --color-primary: #0f72a0;
+    --color-primary-hover: #24a1db;
+    --color-disabled: #808080;
 
     --background-main: #121212;
+    --background-alt: #343434;
+    --background-alt2: #565656;
     --background-loading: #646464;
     --background-loading-shimmer: #808080;
     --background-error: #FF0000;
@@ -12,10 +16,15 @@
     --border-radius: 2.25rem;
 }
 
+*, *:before, *:after {
+    box-sizing: border-box;
+}
+
 html {
     font-size: 62.5%; /* 1rem = 10px by default */
 }
 body {
+    color: var(--text-main);
     background-color: var(--background-main);
 
     margin: 0;
@@ -23,6 +32,7 @@ body {
 
     font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
     font-size: 1.6rem;
+
     line-height: 1.5;
     font-weight: 400;
 
