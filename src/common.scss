@@ -1,0 +1,273 @@
+.button {
+    color: var(--text-normal);
+    background-color: var(--background-alt3);
+
+    border: 0.2em solid transparent;
+    outline: none;
+
+    padding: 0.15em 0.75em;
+    border-radius: var(--border-radius);
+
+    font-weight: bold;
+    text-align: center;
+
+    height: 2.2em;
+    margin: 0 0.5em;
+
+    display: flex;
+    place-content: center;
+
+    cursor: pointer;
+    transition: all 0.25s ease-in-out;
+    
+    span.material-icons {
+        font-size: 1.5em;
+        margin-right: -0.25em;
+        padding-left: 0.25em;
+    }
+}
+.button:hover {
+    color: var(--text-highlight);
+    background-color: var(--color-primary-hover);
+    border-color: white;
+}
+.button:focus, .button:focus-visible {
+    outline: 4px auto -webkit-focus-ring-color;
+}
+.button:disabled, .button:disabled:hover, .button:disabled:focus, .button:disabled:focus-visible {
+    color: color-mix(in srgb, var(--text-highlight) 50%, transparent);
+    background-color: color-mix(in srgb, var(--background-alt3) 50%, transparent);
+    border-color: transparent;
+
+    cursor: not-allowed;
+}
+
+.button-primary {
+    background-color: var(--color-primary);
+}
+
+.button-danger {
+    background-color: var(--color-danger);
+}
+.button-danger:hover {
+    background-color: var(--color-danger-hover);
+}
+
+
+.input-field {
+    color: var(--text-highlight);
+    background-color: var(--background-alt2);
+
+    border: 0.2em solid transparent;
+    outline: none;
+
+    padding: 0.05em 0.8em;
+    border-radius: var(--border-radius);
+
+    height: 100%;
+}
+.input-field:focus {
+    border-color: var(--color-primary-hover)
+}
+.input-field:invalid {
+    border-color: var(--color-danger-hover)
+}
+
+.input-field-alt {
+    background-color: var(--background-alt3);
+}
+
+
+.dropdown-select {
+    position: relative;
+
+    select {
+        color: var(--text-highlight);
+        background-color: var(--background-alt3);
+    
+        appearance: none;
+        border: none;
+        outline: none;
+    
+        padding: 0.25em 2.5em 0.25em 1em;
+        border-radius: var(--border-radius);
+    
+        font-size: 0.9375em;
+        font-weight: 600;
+    
+        height: 2.52em;
+    }
+}
+.dropdown-select::after {
+    content: "expand_more";
+
+    font-family: 'Material Icons';
+    font-size: 1.5em;
+
+    position: absolute;
+    top: 0;
+    right: 0.5em;
+}
+
+
+.checkbox-toggle {
+    width: fit-content;
+    color: var(--text-highlight);
+
+    display: flex;
+    align-items: center;
+
+    cursor: pointer;
+
+    label {
+        cursor: pointer;
+
+        margin-left: 1em;
+        transition: 120ms color ease-in-out;
+    }
+    label:hover {
+        color: var(--color-primary-hover);
+    }
+
+    input[type="checkbox"] {
+        // Remove default checkbox
+        -webkit-appearance: none;
+        appearance: none;
+        background-color: transparent;
+        margin: 0;
+
+        color: currentColor;
+        font-size: inherit;
+
+        width: 2.5em;
+        height: 1.25em;
+        outline: 0.15em solid currentColor;
+        border-radius: 1.25em;
+
+        position: relative;
+        transition: 120ms outline ease-in-out;
+    }
+    input[type="checkbox"]:hover {
+        outline: 0.15em solid var(--color-primary-hover);
+    }
+    input[type="checkbox"]:checked {
+        outline: 0.15em solid var(--color-primary-hover);
+    }
+    input[type="checkbox"]::before {
+        content: "";
+        position: absolute;
+        top: 0.175em;
+        left: 0.175em;
+
+        width: 0.85em;
+        height: 0.85em;
+        border-radius: 50%;
+
+        box-shadow: inset 1em 1em currentColor;
+
+        transform: translateX(0);
+        transition: 120ms all ease-in-out;
+    }
+    input[type="checkbox"]:hover::before {
+        box-shadow: inset 1em 1em var(--color-primary-hover);
+    }
+    input[type="checkbox"]:checked::before {
+        box-shadow: inset 1em 1em var(--color-primary-hover);
+        transform: translateX(1.25em);
+    }
+}
+.checkbox-toggle.disabled {
+    cursor: not-allowed;
+
+    label, label:hover {
+        cursor: not-allowed;
+
+        color: var(--color-disabled);
+    }
+
+    input[type="checkbox"] {
+        outline-color: var(--color-disabled);
+    }
+    input[type="checkbox"]::before {
+        box-shadow: inset 1em 1em var(--color-disabled);
+    }
+}
+
+
+.radio-select {
+    label {
+        cursor: pointer;
+
+        font-weight: 500;
+        transition: 120ms color ease-in-out;
+    }
+    label:hover {
+        color: var(--color-primary-hover);
+    }
+
+    input[type="radio"] {
+        // Remove default radio button
+        -webkit-appearance: none;
+        appearance: none;
+        background-color: transparent;
+        margin: 0;
+
+        font-size: inherit;
+        color: currentColor;
+
+        width: 1em;
+        height: 1em;
+        outline: 0.15em solid currentColor;
+        border-radius: 50%;
+
+        position: relative;
+        transition: 120ms outline-color ease-in-out;
+    }
+    input[type="radio"]:hover {
+        outline-color: var(--color-primary-hover);
+    }
+    input[type="radio"]:checked {
+        outline-color: var(--color-primary-hover);
+    }
+    input[type="radio"]::before {
+        content: "";
+        position: absolute;
+        top: 0.175em;
+        left: 0.175em;
+
+        width: 0.65em;
+        height: 0.65em;
+        border-radius: 50%;
+        transform: scale(0);
+        box-shadow: inset 1em 1em var(--color-primary-hover);
+
+        transition: 120ms transform ease-in-out;
+    }
+    input[type="radio"]:checked::before {
+        transform: scale(1);
+    }
+}
+.radio-select.disabled {
+    fieldset {
+        color: var(--color-disabled);
+        border-color: var(--color-disabled);
+    }
+
+    div {
+        cursor: not-allowed;
+    }
+
+    label {
+        cursor: not-allowed;
+    }
+    label:hover {
+        color: var(--color-disabled);
+    }
+
+    input[type="radio"], input[type="radio"]:hover, input[type="radio"]:checked {
+        outline-color: var(--color-disabled);
+    }
+    input[type="radio"]::before {
+        box-shadow: inset 1em 1em var(--color-disabled);
+    }
+}

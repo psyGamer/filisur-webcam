@@ -5,15 +5,18 @@
     --color-primary: #0f72a0;
     --color-primary-hover: #24a1db;
     --color-disabled: #808080;
+    --color-danger: #e25247;
+    --color-danger-hover: #db7770;
 
     --background-main: #121212;
     --background-alt: #343434;
     --background-alt2: #565656;
+    --background-alt3: #727272;
     --background-loading: #646464;
     --background-loading-shimmer: #808080;
     --background-error: #FF0000;
 
-    --border-radius: 2.25rem;
+    --border-radius: 1.4em;
 }
 
 *, *:before, *:after {
@@ -40,4 +43,29 @@ body {
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
+
+.material-icons {
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 0.9em;  /* Preferred icon size */
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+  
+    /* Support for all WebKit browsers. */
+    -webkit-font-smoothing: antialiased;
+    /* Support for Safari and Chrome. */
+    text-rendering: optimizeLegibility;
+  
+    /* Support for Firefox. */
+    -moz-osx-font-smoothing: grayscale;
+  
+    /* Support for IE. */
+    font-feature-settings: 'liga';
 }
