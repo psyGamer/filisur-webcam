@@ -1,4 +1,7 @@
 import { Router } from "express";
+import moment from 'moment'
+
+import { getTrainInformation } from './schedule.ts'
 
 const router = Router()
 
@@ -20,6 +23,34 @@ router.get("/categorize/pending", async (_, res) => {
         "2025-11-23/2025-11-23_12-58-13.mp4",
         "2025-11-23/2025-11-23_12-58-48.mp4",
     ])
+})
+
+router.get("/categorize/train-info", async (req, res) => {
+    // @ts-ignore
+    const dayInput: string | undefined = req.query.day
+    const day = moment(dayInput, "YYYY-MM-DD", true)
+
+    console.log(day.toJSON())
+
+    // @ts-ignore
+    const trainNumber: string | undefined = req.query.train
+
+    if (!dayInput || !day.isValid()) {
+        res.status(400).send("Expected target day in format '?day=<YYYY-MM-DD>'")
+        return
+    }
+    if (!trainNumber) {
+        res.status(400).send("Expected target train number in format '?train=<number>'")
+        return
+    }
+
+    const info = getTrainInformation(day, trainNumber)
+    if (!info) {
+        res.status(404).send(`Train number '${trainNumber}' on day '${dayInput}' was not found`)
+        return
+    }
+
+    res.status(200).json(info)
 })
 
 export default router

@@ -1,14 +1,16 @@
-export enum LocomotiveCategory {
-    Ge_44_1 = "Ge_44_1",
-    Ge_44_2 = "Ge_44_2",
-    Ge_44_3 = "Ge_44_3",
+export const LocomotiveCategory = {
+    Ge_44_1: "Ge_44_1",
+    Ge_44_2: "Ge_44_2",
+    Ge_44_3: "Ge_44_3",
 
-    Gem_44_1 = "Gem_44_1",
+    Gem_44_1: "Gem_44_1",
 
-    ABe_812_1 = "ABe_812_1",
-    ABe_416_1 = "ABe_416_1",
-    ABe_416_2 = "ABe_416_2",
-}
+    ABe_812_1: "ABe_812_1",
+    ABe_416_1: "ABe_416_1",
+    ABe_416_2: "ABe_416_2",
+} as const
+export type LocomotiveCategoryKey = typeof LocomotiveCategory[keyof typeof LocomotiveCategory]
+
 export const categoryDisplayNames = ({
     [LocomotiveCategory.Ge_44_1]: "Ge 4/4 I",
     [LocomotiveCategory.Ge_44_2]: "Ge 4/4 II",
@@ -23,13 +25,13 @@ export const categoryDisplayNames = ({
 
 export type Locomotive = {
     number?: number
-    category?: LocomotiveCategory
+    category?: LocomotiveCategoryKey
 
     positionIndex?: number
     isTowed?: boolean
 }
 
-export function getCategoryFromNumber(number: number): LocomotiveCategory | null {
+export function getCategoryFromNumber(number: number): LocomotiveCategoryKey | null {
     if (number >= 601 && number <= 610) {
         return LocomotiveCategory.Ge_44_1
     }

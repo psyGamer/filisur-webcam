@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 
-import { LocomotiveCategory, categoryDisplayNames, type Locomotive, getCategoryFromNumber, locomotiveVariant as locomotiveVariants } from '../types/Locomotive'
+import { LocomotiveCategory, categoryDisplayNames, type Locomotive, getCategoryFromNumber, locomotiveVariant as locomotiveVariants } from '../../common/locomotive'
 
 import './TrainDescription.scss'
 
@@ -113,12 +113,12 @@ function TrainDescription() {
             <input type='text' inputMode='numeric' pattern="\d*" className='input-field'/>
         </div>
 
-        <p className='train-info'>
+        <span className='train-info'>
             <p className='title'>Bernina Express:</p>
             <p>Tirano</p>
             <span className='material-icons'>east</span>
             <p>Chur</p>
-        </p>
+        </span>
 
         <div className='shunting checkbox-toggle' >
             <input type='checkbox' id='shunting' checked={isShuntingDrive} onChange={e => setShuntingDrive(e.target.checked)}/>
