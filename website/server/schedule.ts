@@ -40,7 +40,7 @@ function jsonMomementReceiver(_: string, value: any) {
     return value
 }
 
-const dataDir = `${import.meta.dirname}/../data/schedule`
+const dataDir = `${import.meta.dirname}/../../data/schedule`
 
 // Read index
 const indexPath = path.join(dataDir, "index.json")

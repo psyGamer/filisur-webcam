@@ -15,7 +15,7 @@ import cv2
 webcam_url = "https://grischuna-cam.weta.ch/cgi-bin/mjpg/video.cgi?channel=0&subtype=1"
 
 video_source = webcam_url
-# video_source = "test_data/showdown_17_19-11-cut-merged-1763571587874.avi"
+# video_source = "/media/Storage/RhB_Live_Download/webcams/filisur/test_data/showdown_17_19-11-cut-merged-1763571587874.avi"
 # video_source = "test_data/showdown_17_19-11-cut-merged-1763571763260.avi"
 # video_source = "test_data/reversed.avi"
 
@@ -67,8 +67,8 @@ weather_check_area_pt2 = (0.75, 0.48)
 last_image_write = None
 
 debug_mode = True
-debug_log = True
-output_video = video_source == webcam_url or not debug_mode
+debug_log = False
+output_video = True or video_source == webcam_url or not debug_mode
 
 class DayMode(Enum):
     BOTH = 0
@@ -288,7 +288,7 @@ class SnippetCollection:
 
         process = subprocess.Popen([
             "ffmpeg", "-hide_banner", "-loglevel", "error",
-            "-f", "concat",
+            "-f", "concat", "-safe", "0",
             "-i", filelist,
             "-c:v", "copy", self.target_file
         ])
