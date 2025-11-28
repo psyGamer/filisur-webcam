@@ -40,14 +40,16 @@ function jsonMomementReceiver(_: string, value: any) {
     return value
 }
 
+const dataDir = `${import.meta.dirname}/../data/schedule`
+
 // Read index
-const indexPath = path.join(process.env.SCHEDULE_DIRECTORY, "index.json")
+const indexPath = path.join(dataDir, "index.json")
 const indexFile = fs.readFileSync(indexPath, { encoding: 'utf-8' })
 const indexJson = JSON.parse(indexFile, jsonMomementReceiver) as ScheduleIndex
 
 // Read all schedules
 const schedules = indexJson.map(entry => {
-    const schedulePath = path.join(process.env.SCHEDULE_DIRECTORY, entry.file_path)
+    const schedulePath = path.join(dataDir, entry.file_path)
     const scheduleFile = fs.readFileSync(schedulePath, { encoding: 'utf-8' })
     const scheduleFileStripped = scheduleFile.split('\n').map(line => line.trimStart().startsWith('//') ? '' : line).join('\n')
     const scheduleJson = JSON.parse(scheduleFileStripped, jsonMomementReceiver) as TrainEntry[]
