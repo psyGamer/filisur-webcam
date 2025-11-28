@@ -346,6 +346,26 @@ def main(input_path, output_dir):
         while destination is None and route_idx < len(route_keys):
             destination = routes[route_keys[route_idx]]["destination_location"]
 
+        def get_position(routes, loco_number):
+            role = routes[loco_number]["locomotive_position"]
+
+            if role == 'D': # D is always first
+                return 0
+            if role == 'F': # F is always second
+                return 1
+            if role == 'B': # B is always third
+                return 2
+            if role == 'C': # C is always fourth
+                return 3
+            
+            if role == 'A': # A is sometimes second, but maybe first if there is only one locomotive
+                return min(len(routes) - 1, 1)
+
+            if role == 'S': # Towed locomotives are always last TODO: What about multiple towed?
+                return len(routes) - 1
+
+            return 0 # No qualifier means there are no other locomotives
+
         result["trains"].append({
             "origin_location": main_route["origin_location"],
             "destination_location": destination,
@@ -354,10 +374,11 @@ def main(input_path, output_dir):
 
             "number": train_number,
 
-            "locomotives": [{
+            "locomotives": sorted([{
                 "number": int(loco_number),
-                "position": routes[loco_number]["locomotive_position"],
-            } for loco_number in routes],
+                "role": routes[loco_number]["locomotive_position"],
+                "position": get_position(routes, loco_number)
+            } for loco_number in routes], key=lambda loco: loco["position"]),
         })
 
     with open(os.path.join(output_dir, f"{target_date[2]}_{target_date[1]}_{target_date[0]}.json"), "w") as f:

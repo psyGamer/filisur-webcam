@@ -117,8 +117,6 @@
     display: flex;
     align-items: center;
 
-    cursor: pointer;
-
     label {
         cursor: pointer;
 
@@ -130,6 +128,8 @@
     }
 
     input[type="checkbox"] {
+        cursor: pointer;
+
         // Remove default checkbox
         -webkit-appearance: none;
         appearance: none;
@@ -206,6 +206,8 @@
     }
 
     input[type="radio"] {
+        cursor: pointer;
+
         // Remove default radio button
         -webkit-appearance: none;
         appearance: none;

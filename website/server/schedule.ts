@@ -4,9 +4,13 @@ import fs from "node:fs"
 import path from "path"
 
 import { type Train, type Schedule } from '../common/train.ts'
-import { type Locomotive } from '../common/locomotive.ts'
+import { getCategoryFromNumber, type Locomotive } from '../common/locomotive.ts'
+
+import logger from "./logger.ts"
 
 const reISO = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.{0,1}\d*))(?:Z|(\+|-)([\d|:]*))?$/;
+
+type HourMinute = { hour: number, minute: number }
 
 type ScheduleIndex = {
     start_date: moment.Moment
@@ -30,6 +34,53 @@ type TrainEntry = {
     }
 }
 
+type LocomotiveAllocationEntry = {
+    number: number
+    service_identifier: string
+    distance_km: number
+
+    yesterday: {
+        location: string
+        train_number: string
+        service_identifier: string
+    }
+    tomorrow: {
+        location: string
+        train_number: string
+        service_identifier: string
+    }
+
+    routes: {
+        origin_location: string
+        destination_location: string
+
+        locomotive_position: string | null
+        train_number: string
+
+        departure_time: HourMinute
+        arrival_time: HourMinute
+    }[]
+}
+type TrainAllocationEntry = {
+    number: string
+
+    origin_location: string
+    destination_location: string
+
+    departure_time: HourMinute
+    arrival_time: HourMinute
+
+    locomotives: {
+        number: number
+        role: string | null
+        position: number
+    }[]
+}
+type LocomotiveAllocations = { 
+    locomotives: LocomotiveAllocationEntry[]
+    trains: TrainAllocationEntry[] 
+}
+
 function jsonMomementReceiver(_: string, value: any) {
     // Manually parse moments
     if (typeof value != 'string' || !reISO.exec(value)) return value
@@ -41,6 +92,7 @@ function jsonMomementReceiver(_: string, value: any) {
 }
 
 const dataDir = `${import.meta.dirname}/../../data/schedule`
+const allocationDir = `${import.meta.dirname}/../../data/locomotive_allocations`
 
 // Read index
 const indexPath = path.join(dataDir, "index.json")
@@ -83,7 +135,11 @@ type TrainInformation = {
     train: Train
     locomotives: Locomotive[]
 }
+
+let allocationCache: { [key: string]: LocomotiveAllocations | null } = ({})
+
 export function getTrainInformation(day: moment.Moment, number: string): TrainInformation | null {
+    // Find scheduled train
     const train = schedules
         .filter(schedule => schedule.start_date <= day && schedule.end_date >= day)
         .map(schedule => schedule.trains
@@ -95,5 +151,35 @@ export function getTrainInformation(day: moment.Moment, number: string): TrainIn
     
     if (!train) return null
 
-    return { train: train, locomotives: [] } as TrainInformation
+    // Search for train in day's allocations
+    const allocationPath = path.join(allocationDir, `${day.format('YYYY_MM_DD')}.min.json`)
+
+    let allocationEntry = allocationCache[allocationPath]
+    if (allocationEntry == undefined) {
+        try {
+            const allocationFile = fs.readFileSync(allocationPath, { encoding: 'utf-8' })
+            const allocationJson = JSON.parse(allocationFile, jsonMomementReceiver) as LocomotiveAllocations
+    
+            logger.info(`Found locomotive allocations for '${allocationPath}' with ${allocationJson.locomotives.length} locomotives and ${allocationJson.trains.length} trains`)
+            allocationCache[allocationPath] = allocationEntry = allocationJson
+        } catch (err) {
+            // Ignore
+            logger.error(`Failed to find locomotive allocations for '${allocationPath}'`)
+            allocationCache[allocationPath] = allocationEntry = null
+        }
+    }
+    if (!allocationEntry) return { train: train, locomotives: [] } as TrainInformation
+
+    const allocatedTrain = allocationEntry.trains.find(t => t.number == number)
+    if (!allocatedTrain) return { train: train, locomotives: [] } as TrainInformation
+
+    return {
+        train: train,
+        locomotives: allocatedTrain.locomotives.map(loco => ({
+            number: loco.number,
+            category: getCategoryFromNumber(loco.number),
+            isTowed: loco.role == 'S',
+            positionIndex: loco.position
+        } as Locomotive))
+    } as TrainInformation
 }
