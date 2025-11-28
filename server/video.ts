@@ -8,7 +8,7 @@ const router = Router()
 router.get("/*path", async (req, res) => {
     // @ts-ignore
     const videoSubpath: string[] = req.params.path
-    const archivePath = process.env.VIDEO_ARCHIVE!
+    const archivePath = process.env.WEBCAM_VIDEO_ARCHIVE!
 
     const videoPath = path.normalize(path.join(archivePath, path.join(...videoSubpath)))
     

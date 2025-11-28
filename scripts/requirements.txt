@@ -1,2 +1,4 @@
 pdfplumber
+opencv-python
+python-dotenv
 rich
