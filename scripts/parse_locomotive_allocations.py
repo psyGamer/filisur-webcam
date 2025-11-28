@@ -3,10 +3,12 @@ import rich
 from rich import print as pprint
 
 from dataclasses import dataclass, field
-from typing import Optional
 
+import os
+import sys
 import math
 import json
+import re
 
 @dataclass
 class Route:
@@ -50,11 +52,6 @@ class Locomotive:
             self.prev_train_number = ""
             for i in range(service_idx):
                 self.prev_train_number += prev_lines[i]
-                # line = prev_lines[i]
-                # if len(self.prev_train_number) == 0 or line.startswith(":"):
-                #     self.prev_train_number += line
-                # else:
-                #     self.prev_train_number += f" {line}"
 
         if len(next_lines) == 1:
             self.next_location = None
@@ -74,11 +71,6 @@ class Locomotive:
             self.next_train_number = ""
             for i in range(service_idx):
                 self.next_train_number += next_lines[i]
-                # line = next_lines[i]
-                # if len(self.next_train_number) == 0 or line.startswith(":"):
-                #     self.next_train_number += line
-                # else:
-                #     self.next_train_number += f" {line}"
 
 
 def approx_equal(a, b, max_error = 0.05):
@@ -92,13 +84,21 @@ def format_time(hours):
 
     return "%d:%02d" % (hours, round(minutes))
 
-def main(input_path, output_path):
+def main(input_path, output_dir):
     pdf = pdfplumber.open(input_path)
 
     all_locos = []
+    target_date = None
 
     for page in pdf.pages:
         words = page.extract_words(keep_blank_chars=True)
+
+        if not target_date:
+            for word in words:
+                m = re.match(r'(\d{2}).(\d{2}).(\d{4})\s*\[\w+\]', word['text'])
+                if m:
+                    target_date = m.groups()
+                    break
 
         # Find locomotives
         locos = []
@@ -206,13 +206,14 @@ def main(input_path, output_path):
         hour0_x = None
         hour24_x = None
         for rect in page.rects:
-            # Identify based on usual dimensions
-            if not approx_equal(rect['height'], 470.64):
+            # Identify based on usual attributes
+            if rect['height'] < 50 or not approx_equal(rect['top'], 60, max_error=3) or rect['non_stroking_color'] != (0.625, 0.625, 0.625):
                 continue
 
             # Assumes they are orded in the PDF file, but they *should* be
             if hour0_x is None:
                 hour0_x = rect['x0'] + rect['width']/2
+            # Some lines - including 24h - are a bit thiner
             elif approx_equal(rect['width'], 0.84):
                 hour24_x = rect['x0'] + rect['width']/2
 
@@ -316,7 +317,6 @@ def main(input_path, output_path):
                 trains[train_number] = { loco.number: route_result }
             else:
                 trains[train_number][loco.number] = route_result
-            print(trains)
 
         result["locomotives"].append({
             "number": int(loco.number),
@@ -360,11 +360,12 @@ def main(input_path, output_path):
             } for loco_number in routes],
         })
 
-    with open(output_path, "w") as f:
+    with open(os.path.join(output_dir, f"{target_date[2]}_{target_date[1]}_{target_date[0]}.json"), "w") as f:
         json.dump(result, f, indent=4)
-        
+    with open(os.path.join(output_dir, f"{target_date[2]}_{target_date[1]}_{target_date[0]}.min.json"), "w") as f:
+        json.dump(result, f)
 
 if __name__ == "__main__":
-    main("/media/Storage/RhB_Live_Download/Lokdienste/Original/Lokdienst_28.11.2025.pdf", "./result.json")
+    main(sys.argv[1], "../data/locomotive_allocations")
 
 
