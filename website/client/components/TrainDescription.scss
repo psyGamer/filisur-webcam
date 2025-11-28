@@ -1,3 +1,24 @@
+.train-list {
+    display: flex;
+    flex-direction: column;
+
+    .train-box {
+        border-radius: calc(1.5 * var(--border-radius));
+        margin: 0.5em 1em;
+    }
+    .train-btn {
+        display: block;
+        flex-shrink: 0;
+        margin: 0.5em auto;
+
+        font-size: 1.1em;
+
+        width: 50%;
+        height: 3.5em;
+    }
+}
+
+
 .train-box {
     background-color: var(--background-alt);
 

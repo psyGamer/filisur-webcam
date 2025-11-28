@@ -30,7 +30,7 @@ import {
 import VerticalVideoSelector from "../components/VerticalVideoSelector"
 
 import './Categorize.scss'
-import TrainDescriptionPanel from "../components/TrainDescription";
+import TrainDescriptionPanel, { TrainList, type TrainDescription } from "../components/TrainDescription";
 import moment from "moment";
 
 const useFetchPending = () => useQuery({
@@ -47,6 +47,8 @@ function Categorize() {
 
     const playbackMenuRef = useRef<MediaPlaybackRateMenuType>(null)
     const playbackButtonRef = useRef<MediaPlaybackRateMenuButtonType>(null)
+
+    const [trainDescriptions, setTrainDescriptions] = useState<TrainDescription[]>([{}])
 
     useEffect(() => {
         if (!playbackMenuRef.current || !playbackButtonRef.current) return
@@ -153,7 +155,7 @@ function Categorize() {
                 </MediaControlBar>
             </MediaController> */}
 
-            <TrainDescriptionPanel day={moment()}></TrainDescriptionPanel>
+            <TrainList descriptions={trainDescriptions} setDescriptions={setTrainDescriptions} />
         </div>
     </>
 }

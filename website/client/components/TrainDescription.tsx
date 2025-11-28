@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { useRef, useState } from 'react'
+import moment from 'moment'
+import { useRef, useState, type Dispatch, type SetStateAction } from 'react'
 
 import { LocomotiveCategory, categoryDisplayNames, type Locomotive, getCategoryFromNumber, locomotiveVariant as locomotiveVariants, type LocomotiveCategoryKey } from '../../common/locomotive'
 import { type Train, type TrainInformation } from '../../common/train.ts'
@@ -132,37 +133,35 @@ function DirectionRadio({
     targetDirection, 
     currentDirection, 
     isShunting, 
-    onChanged 
+    onClick 
 }: { 
     name: string, 
     targetDirection: Direction, 
     currentDirection: OptionalDirection, 
     isShunting: boolean, 
-    onChanged: (dir: Direction) => void 
+    onClick: () => void 
 }) {
     return <div>
-        <input type='radio' name={name} id={`${name}-${targetDirection}`} checked={currentDirection == targetDirection} disabled={isShunting} onClick={() => onChanged(targetDirection)}/>
+        <input type='radio' name={name} id={`${name}-${targetDirection}`} checked={currentDirection == targetDirection} disabled={isShunting} onChange={onClick}/>
         <label htmlFor={`${name}-${targetDirection}`}>{directionNames[targetDirection]}</label>
     </div>
 }
 
 export type TrainDescription = {
-    number: string
+    number?: string
 
-    shuntingDrive: boolean
-    fromDirection: OptionalDirection
-    toDirection: OptionalDirection
+    shuntingDrive?: boolean
+    fromDirection?: OptionalDirection
+    toDirection?: OptionalDirection
 
-    locomotives: Locomotive[]
+    locomotives?: Locomotive[]
 }
 
-function TrainDescriptionPanel({ day }: { day: moment.Moment }) {
-    const [isShuntingDrive, setShuntingDrive] = useState<boolean>(true)
-    const [fromDirection, setFromDirection] = useState<OptionalDirection>('none')
-    const [toDirection, setToDirection] = useState<OptionalDirection>('none')
-
+function TrainDescriptionPanel({ day, description: desc, onDescriptionChanged: onDescChagned }: { day: moment.Moment, description: TrainDescription, onDescriptionChanged: (desc: TrainDescription) => void }) {
     const [trainInfo, setTrainInfo] = useState<Train | null>(null)
-    const [locomotives, setLocomotives] = useState<Locomotive[]>([])
+
+    const locomotives = desc.locomotives || []
+    const setLocomotives = (locomotives: Locomotive[]) => onDescChagned({ ...desc, locomotives: locomotives })
 
     return <div className='train-box'>
         <div className='train-nr'>
@@ -176,16 +175,18 @@ function TrainDescriptionPanel({ day }: { day: moment.Moment }) {
                         }
                     })
                     if (res.status == 200) {
-                        setShuntingDrive(false)
-                        if (res.data.train.information) {
-                            const originDirection = knownDirections[res.data.train.information.origin]
-                            const destinationDirection = knownDirections[res.data.train.information.destination]
-                            if (originDirection) setFromDirection(originDirection)
-                            if (destinationDirection) setToDirection(destinationDirection)
-                        }
+                        const originDirection = res.data.train.information ? knownDirections[res.data.train.information.origin] : undefined
+                        const destinationDirection = res.data.train.information ? knownDirections[res.data.train.information.destination] : undefined
+
+                        onDescChagned({
+                            number: desc.number,
+                            shuntingDrive: false,
+                            fromDirection: originDirection ? originDirection : desc.fromDirection,
+                            toDirection: destinationDirection ? destinationDirection : desc.toDirection,
+                            locomotives: res.data.locomotives
+                        })
 
                         setTrainInfo(res.data.train)
-                        setLocomotives(res.data.locomotives)
                         e.target.setCustomValidity("")
                     } else {
                         setTrainInfo(null)
@@ -211,54 +212,72 @@ function TrainDescriptionPanel({ day }: { day: moment.Moment }) {
         </span>
 
         <div className='shunting checkbox-toggle' >
-            <input type='checkbox' id='shunting' checked={isShuntingDrive} onChange={e => setShuntingDrive(e.target.checked)}/>
+            <input type='checkbox' id='shunting' checked={desc.shuntingDrive} onChange={e => onDescChagned({ ...desc, shuntingDrive: e.target.checked })}/>
             <label htmlFor='shunting'>Rangierfahrt</label>
         </div>
 
-        <div className={`from-to-box radio-select ${isShuntingDrive ? 'disabled' : ''}`}>
+        <div className={`from-to-box radio-select ${desc.shuntingDrive ? 'disabled' : ''}`}>
             <fieldset>
                 <legend>Von</legend>
 
-                <DirectionRadio name='from' targetDirection='filisur' currentDirection={fromDirection} isShunting={isShuntingDrive} onChanged={dir => setFromDirection(dir)} />
-                <DirectionRadio name='from' targetDirection='chur' currentDirection={fromDirection} isShunting={isShuntingDrive} onChanged={dir => setFromDirection(dir)} />
-                <DirectionRadio name='from' targetDirection='moritz' currentDirection={fromDirection} isShunting={isShuntingDrive} onChanged={dir => setFromDirection(dir)} />
-                <DirectionRadio name='from' targetDirection='davos' currentDirection={fromDirection} isShunting={isShuntingDrive} onChanged={dir => setFromDirection(dir)} />
+                {Object.keys(directionNames).map(direction => <DirectionRadio 
+                    name='from' 
+                    targetDirection={direction as Direction}
+                    currentDirection={desc.fromDirection || 'none'}
+                    isShunting={desc.shuntingDrive || false} 
+                    onClick={() => onDescChagned({ ...desc, fromDirection: direction as Direction })} />
+                )}
             </fieldset>
 
             <fieldset>
                 <legend>Nach</legend>
 
-                <DirectionRadio name='to' targetDirection='filisur' currentDirection={toDirection} isShunting={isShuntingDrive} onChanged={dir => setToDirection(dir)} />
-                <DirectionRadio name='to' targetDirection='chur' currentDirection={toDirection} isShunting={isShuntingDrive} onChanged={dir => setToDirection(dir)} />
-                <DirectionRadio name='to' targetDirection='moritz' currentDirection={toDirection} isShunting={isShuntingDrive} onChanged={dir => setToDirection(dir)} />
-                <DirectionRadio name='to' targetDirection='davos' currentDirection={toDirection} isShunting={isShuntingDrive} onChanged={dir => setToDirection(dir)} />
+                {Object.keys(directionNames).map(direction => <DirectionRadio 
+                    name='to' 
+                    targetDirection={direction as Direction}
+                    currentDirection={desc.toDirection || 'none'}
+                    isShunting={desc.shuntingDrive || false} 
+                    onClick={() => onDescChagned({ ...desc, toDirection: direction as Direction })} />
+                )}
             </fieldset>
         </div>
 
         {locomotives.map((loco, idx) => <LocomotiveDescription 
             key={idx} 
             locomotive={loco} 
-            onLocomotiveChanged={new_loco => setLocomotives(curr => curr.map((curr_loco, curr_idx) => idx == curr_idx ? new_loco : curr_loco))}
-            onTowedChanged={locomotives.length == 1 ? undefined : towed => setLocomotives(curr => curr.map((curr_loco, curr_idx) => idx == curr_idx ? { ...curr_loco, isTowed: towed } : curr_loco))}
-            onMoveUp={idx == 0 ? undefined : () => setLocomotives(curr => [
-                ...curr.slice(0, idx - 1),
-                { ...curr[idx], positionIndex: idx - 1 },
-                { ...curr[idx - 1], positionIndex: idx },
-                ...curr.slice(idx + 1),
+            onLocomotiveChanged={new_loco => setLocomotives(locomotives.map((curr_loco, curr_idx) => idx == curr_idx ? new_loco : curr_loco))}
+            onTowedChanged={locomotives.length == 1 ? undefined : towed => setLocomotives(locomotives.map((curr_loco, curr_idx) => idx == curr_idx ? { ...curr_loco, isTowed: towed } : curr_loco))}
+            onMoveUp={idx == 0 ? undefined : () => setLocomotives([
+                ...locomotives.slice(0, idx - 1),
+                { ...locomotives[idx], positionIndex: idx - 1 },
+                { ...locomotives[idx - 1], positionIndex: idx },
+                ...locomotives.slice(idx + 1),
             ])}
-            onMoveDown={idx == locomotives.length - 1 ? undefined : () => setLocomotives(curr => [
-                ...curr.slice(0, idx),
-                { ...curr[idx + 1], positionIndex: idx },
-                { ...curr[idx], positionIndex: idx + 1 },
-                ...curr.slice(idx + 2),
+            onMoveDown={idx == locomotives.length - 1 ? undefined : () => setLocomotives([
+                ...locomotives.slice(0, idx),
+                { ...locomotives[idx + 1], positionIndex: idx },
+                { ...locomotives[idx], positionIndex: idx + 1 },
+                ...locomotives.slice(idx + 2),
             ])}
-            onDelete={() => setLocomotives(curr => [
-                ...curr.slice(0, idx),
-                ...curr.slice(idx + 1).map((curr_loco, curr_idx) => ({ ...curr_loco, positionIndex: curr_idx - 1 })),
+            onDelete={() => setLocomotives([
+                ...locomotives.slice(0, idx),
+                ...locomotives.slice(idx + 1).map((curr_loco, curr_idx) => ({ ...curr_loco, positionIndex: curr_idx - 1 })),
             ])}
             />)}
 
-        <button className='button button-primary loco-btn' onClick={() => setLocomotives(curr => [...curr, { positionIndex: curr.length }])}>Lok Hinzufügen</button>
+        <button className='button button-primary loco-btn' onClick={() => setLocomotives([...locomotives, { positionIndex: locomotives.length }])}>Lok Hinzufügen</button>
+    </div>
+}
+
+export function TrainList({ descriptions, setDescriptions }: { descriptions: TrainDescription[], setDescriptions: Dispatch<SetStateAction<TrainDescription[]>> }) {
+    return <div className="train-list">
+        {descriptions.map((desc, idx) => <TrainDescriptionPanel 
+            key={idx} 
+            day={moment()} 
+            description={desc} 
+            onDescriptionChanged={newDesc => setDescriptions(curr => curr.map((currDesc, currIdx) => idx == currIdx ? newDesc : currDesc))} 
+        />)}
+        <button className='button button-primary train-btn' onClick={() => setDescriptions(curr => [...curr, {}])}>Zug Hinzufügen</button>
     </div>
 }
 
