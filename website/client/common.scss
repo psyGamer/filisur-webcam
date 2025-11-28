@@ -177,8 +177,6 @@
     }
 }
 .checkbox-toggle.disabled {
-    cursor: not-allowed;
-
     label, label:hover {
         cursor: not-allowed;
 
@@ -186,6 +184,8 @@
     }
 
     input[type="checkbox"] {
+        cursor: not-allowed;
+
         outline-color: var(--color-disabled);
     }
     input[type="checkbox"]::before {
@@ -267,6 +267,8 @@
     }
 
     input[type="radio"], input[type="radio"]:hover, input[type="radio"]:checked {
+        cursor: not-allowed;
+
         outline-color: var(--color-disabled);
     }
     input[type="radio"]::before {

@@ -1,6 +1,8 @@
+import axios from 'axios'
 import { useRef, useState } from 'react'
 
-import { LocomotiveCategory, categoryDisplayNames, type Locomotive, getCategoryFromNumber, locomotiveVariant as locomotiveVariants } from '../../common/locomotive'
+import { LocomotiveCategory, categoryDisplayNames, type Locomotive, getCategoryFromNumber, locomotiveVariant as locomotiveVariants, type LocomotiveCategoryKey } from '../../common/locomotive'
+import { type Train, type TrainInformation } from '../../common/train.ts'
 
 import './TrainDescription.scss'
 
@@ -35,7 +37,7 @@ function LocomotiveDescription({
 
                     onLocomotiveChanged({ 
                         number: undefined, 
-                        category: categoryRef.current.value == 'none' ? undefined : categoryRef.current.value as LocomotiveCategory,
+                        category: categoryRef.current.value == 'none' ? undefined : categoryRef.current.value as LocomotiveCategoryKey,
                     })
 
                     return
@@ -49,7 +51,6 @@ function LocomotiveDescription({
                     e.target.setCustomValidity("")
                     categoryRef.current.value = targetCategory
 
-                    // @ts-ignore
                     const variant: string | undefined = locomotiveVariants[number]
                     variantRef.current.innerHTML = variant ? variant : ""
 
@@ -63,12 +64,12 @@ function LocomotiveDescription({
 
                     onLocomotiveChanged({ 
                         number: number, 
-                        category: categoryRef.current.value == 'none' ? undefined : categoryRef.current.value as LocomotiveCategory,
+                        category: categoryRef.current.value == 'none' ? undefined : categoryRef.current.value as LocomotiveCategoryKey,
                     })
                 }
             }}/>
 
-            <p className='variant' ref={variantRef} />
+            <p className='variant' ref={variantRef}>{locomotive.number ? locomotiveVariants[locomotive.number] || '' : ''}</p>
 
             <span className="dropdown-select">
                 <select ref={categoryRef} value={locomotive.category || 'none'} onChange={e => {
@@ -76,7 +77,7 @@ function LocomotiveDescription({
 
                     onLocomotiveChanged({
                         number: isNaN(number) ? undefined : number,
-                        category: e.target.value == 'none' ? undefined : e.target.value as LocomotiveCategory,
+                        category: e.target.value == 'none' ? undefined : e.target.value as LocomotiveCategoryKey,
                     })
                 }}>
                     <option value="none">Lokkategorie auswählen...</option>
@@ -103,21 +104,110 @@ function LocomotiveDescription({
     </div>
 }
 
-function TrainDescription() {
+type Direction = 'filisur' | 'chur' | 'moritz' | 'davos'
+type OptionalDirection = Direction | 'none'
+
+const directionNames = ({
+    'filisur': 'Filisur',
+    'chur': 'Chur',
+    'moritz': 'St. Moritz',
+    'davos': 'Davos Platz'
+})
+const knownDirections: { [key: string]: Direction } = ({
+    'Chur': 'chur',
+    'Chur GB': 'chur',
+    'Landquart': 'davos',
+    'Landquart GB': 'chur',
+    'Davos Platz': 'davos',
+    'Filisur': 'filisur',
+    'Pontresina': 'moritz',
+    'Samedan': 'moritz',
+    'St. Moritz': 'moritz',
+    'Tirano': 'moritz',
+    'Zermatt': 'chur',
+})
+
+function DirectionRadio({ 
+    name, 
+    targetDirection, 
+    currentDirection, 
+    isShunting, 
+    onChanged 
+}: { 
+    name: string, 
+    targetDirection: Direction, 
+    currentDirection: OptionalDirection, 
+    isShunting: boolean, 
+    onChanged: (dir: Direction) => void 
+}) {
+    return <div>
+        <input type='radio' name={name} id={`${name}-${targetDirection}`} checked={currentDirection == targetDirection} disabled={isShunting} onClick={() => onChanged(targetDirection)}/>
+        <label htmlFor={`${name}-${targetDirection}`}>{directionNames[targetDirection]}</label>
+    </div>
+}
+
+export type TrainDescription = {
+    number: string
+
+    shuntingDrive: boolean
+    fromDirection: OptionalDirection
+    toDirection: OptionalDirection
+
+    locomotives: Locomotive[]
+}
+
+function TrainDescriptionPanel({ day }: { day: moment.Moment }) {
     const [isShuntingDrive, setShuntingDrive] = useState<boolean>(true)
+    const [fromDirection, setFromDirection] = useState<OptionalDirection>('none')
+    const [toDirection, setToDirection] = useState<OptionalDirection>('none')
+
+    const [trainInfo, setTrainInfo] = useState<Train | null>(null)
     const [locomotives, setLocomotives] = useState<Locomotive[]>([])
 
     return <div className='train-box'>
         <div className='train-nr'>
             <label>Zugnummer</label>
-            <input type='text' inputMode='numeric' pattern="\d*" className='input-field'/>
+            <input type='text' inputMode='numeric' pattern="\d*" className='input-field' onChange={async e => {
+                try {
+                    const res = await axios.get<TrainInformation>("/api/categorize/train-info", {
+                        params: { 
+                            "day": day.format('YYYY-MM-DD'),
+                            "train": e.target.value
+                        }
+                    })
+                    if (res.status == 200) {
+                        setShuntingDrive(false)
+                        if (res.data.train.information) {
+                            const originDirection = knownDirections[res.data.train.information.origin]
+                            const destinationDirection = knownDirections[res.data.train.information.destination]
+                            if (originDirection) setFromDirection(originDirection)
+                            if (destinationDirection) setToDirection(destinationDirection)
+                        }
+
+                        setTrainInfo(res.data.train)
+                        setLocomotives(res.data.locomotives)
+                        e.target.setCustomValidity("")
+                    } else {
+                        setTrainInfo(null)
+                        e.target.setCustomValidity(`Zug Nr. '${e.target.value}' wurde nicht gefunden`)
+                    }
+                } catch (err) {
+                    // Ignore
+                }
+            }}/>
         </div>
 
         <span className='train-info'>
-            <p className='title'>Bernina Express:</p>
-            <p>Tirano</p>
-            <span className='material-icons'>east</span>
-            <p>Chur</p>
+            <p className='title'>{trainInfo?.information?.classifier || ''}</p>
+            <p>{trainInfo?.information?.origin || ''}</p>
+            <span className='material-icons'>{trainInfo ? 'east' : ''}</span>
+            <p>{trainInfo?.information?.destination || ''}</p>
+            <p className='time'>{trainInfo?.transit_time 
+                ? `(${trainInfo.transit_time.hour.toString().padStart(2, "0")}:${trainInfo.transit_time.minute.toString().padStart(2, "0")})`
+                : trainInfo?.arrival_time && trainInfo?.departure_time
+                    ? `(${trainInfo.arrival_time.hour.toString().padStart(2, "0")}:${trainInfo.arrival_time.minute.toString().padStart(2, "0")} / ${trainInfo.departure_time.hour.toString().padStart(2, "0")}:${trainInfo.departure_time.minute.toString().padStart(2, "0")})`
+                    : ''
+            }</p>
         </span>
 
         <div className='shunting checkbox-toggle' >
@@ -129,49 +219,19 @@ function TrainDescription() {
             <fieldset>
                 <legend>Von</legend>
 
-                <div>
-                    <input type='radio' name='from' id='from-filisur' disabled={isShuntingDrive}/>
-                    <label htmlFor='from-filisur'>Filisur</label>
-                </div>
-
-                <div>
-                    <input type='radio' name='from' id='from-chur' disabled={isShuntingDrive}/>
-                    <label htmlFor='from-chur'>Chur</label>
-                </div>
-
-                <div>
-                    <input type='radio' name='from' id='from-moritz' disabled={isShuntingDrive}/>
-                    <label htmlFor='from-moritz'>St. Moritz</label>
-                </div>
-
-                <div>
-                    <input type='radio' name='from' id='from-davos' disabled={isShuntingDrive}/>
-                    <label htmlFor='from-davos'>Davos Platz</label>
-                </div>
+                <DirectionRadio name='from' targetDirection='filisur' currentDirection={fromDirection} isShunting={isShuntingDrive} onChanged={dir => setFromDirection(dir)} />
+                <DirectionRadio name='from' targetDirection='chur' currentDirection={fromDirection} isShunting={isShuntingDrive} onChanged={dir => setFromDirection(dir)} />
+                <DirectionRadio name='from' targetDirection='moritz' currentDirection={fromDirection} isShunting={isShuntingDrive} onChanged={dir => setFromDirection(dir)} />
+                <DirectionRadio name='from' targetDirection='davos' currentDirection={fromDirection} isShunting={isShuntingDrive} onChanged={dir => setFromDirection(dir)} />
             </fieldset>
 
             <fieldset>
                 <legend>Nach</legend>
 
-                <div>
-                    <input type='radio' name='to' id='to-filisur' disabled={isShuntingDrive}/>
-                    <label htmlFor='to-filisur'>Filisur</label>
-                </div>
-
-                <div>
-                    <input type='radio' name='to' id='to-chur' disabled={isShuntingDrive}/>
-                    <label htmlFor='to-chur'>Chur</label>
-                </div>
-
-                <div>
-                    <input type='radio' name='to' id='to-moritz' disabled={isShuntingDrive}/>
-                    <label htmlFor='to-moritz'>St. Moritz</label>
-                </div>
-
-                <div>
-                    <input type='radio' name='to' id='to-davos' disabled={isShuntingDrive}/>
-                    <label htmlFor='to-davos'>Davos Platz</label>
-                </div>
+                <DirectionRadio name='to' targetDirection='filisur' currentDirection={toDirection} isShunting={isShuntingDrive} onChanged={dir => setToDirection(dir)} />
+                <DirectionRadio name='to' targetDirection='chur' currentDirection={toDirection} isShunting={isShuntingDrive} onChanged={dir => setToDirection(dir)} />
+                <DirectionRadio name='to' targetDirection='moritz' currentDirection={toDirection} isShunting={isShuntingDrive} onChanged={dir => setToDirection(dir)} />
+                <DirectionRadio name='to' targetDirection='davos' currentDirection={toDirection} isShunting={isShuntingDrive} onChanged={dir => setToDirection(dir)} />
             </fieldset>
         </div>
 
@@ -202,4 +262,4 @@ function TrainDescription() {
     </div>
 }
 
-export default TrainDescription
+export default TrainDescriptionPanel

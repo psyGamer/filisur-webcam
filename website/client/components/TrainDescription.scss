@@ -2,6 +2,7 @@
     background-color: var(--background-alt);
 
     padding: 1rem;
+    height: fit-content;
 
     font-size: 0.8em;
 }
@@ -13,13 +14,14 @@
 
     label {
         color: var(--text-highlight);
-        font-size: 1.375em;
+        font-size: 1.2em;
         font-weight: 600;
 
-        margin: 0 0.5em 0 1em;
+        margin: 0 1.5em 0 0.5em;
     }
     input {
-        font-size: 1.5em;
+        width: 100%;
+        font-size: 1.3em;
     }
 }
 .train-info {
@@ -43,6 +45,9 @@
 
         font-weight: bold;
     }
+    .time {
+        margin-left: 0.6em;
+    }
 }
 
 .from-to-box {
@@ -61,7 +66,7 @@
         color: var(--text-highlight);
         border-radius: var(--border-radius);
 
-        border: 0.1em white solid;
+        border: 0.15em white solid;
     
         font-size: 1.125em;
         font-weight: 400;
@@ -119,9 +124,12 @@
         font-size: 0.9em;
 
         input {
+            font-weight: 600;
+            text-align: center;
+
             padding: 0.25em 0.75em;
             height: 2.1em;
-            width: 12ch;
+            width: 9ch;
         }
 
         p {

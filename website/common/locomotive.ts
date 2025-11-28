@@ -58,7 +58,7 @@ export function getCategoryFromNumber(number: number): LocomotiveCategoryKey | n
 
     return null
 }
-export const locomotiveVariant = ({
+export const locomotiveVariant: { [key: number]: string } = ({
     // Ge 4/4 II
     611: 'GRÜN & CHROM',
     612: 'Elektropartner',

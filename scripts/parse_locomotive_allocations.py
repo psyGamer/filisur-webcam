@@ -313,10 +313,11 @@ def main(input_path, output_dir):
             }
             routes_result.append(route_result)
 
-            if not train_number in trains:
-                trains[train_number] = { loco.number: route_result }
+            train_key = (train_number, dep_minute)
+            if not train_key in trains:
+                trains[train_key] = { loco.number: route_result }
             else:
-                trains[train_number][loco.number] = route_result
+                trains[train_key][loco.number] = route_result
 
         result["locomotives"].append({
             "number": int(loco.number),
@@ -336,8 +337,8 @@ def main(input_path, output_dir):
         })
 
     result["trains"] = []
-    for train_number in trains:
-        routes = trains[train_number]
+    for train_key in trains:
+        routes = trains[train_key]
         route_keys = list(routes)
         main_route = routes[route_keys[0]]
 
@@ -372,7 +373,7 @@ def main(input_path, output_dir):
             "departure_time": main_route["departure_time"],
             "arrival_time": main_route["arrival_time"],
 
-            "number": train_number,
+            "number": train_key[0],
 
             "locomotives": sorted([{
                 "number": int(loco_number),

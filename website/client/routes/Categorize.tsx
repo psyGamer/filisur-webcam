@@ -30,7 +30,8 @@ import {
 import VerticalVideoSelector from "../components/VerticalVideoSelector"
 
 import './Categorize.scss'
-import TrainDescription from "../components/TrainDescription";
+import TrainDescriptionPanel from "../components/TrainDescription";
+import moment from "moment";
 
 const useFetchPending = () => useQuery({
     queryKey: ['pending'],
@@ -152,7 +153,7 @@ function Categorize() {
                 </MediaControlBar>
             </MediaController> */}
 
-            <TrainDescription></TrainDescription>
+            <TrainDescriptionPanel day={moment()}></TrainDescriptionPanel>
         </div>
     </>
 }

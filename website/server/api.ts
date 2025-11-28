@@ -46,7 +46,8 @@ router.get("/categorize/train-info", async (req, res) => {
 
     const info = getTrainInformation(day, trainNumber)
     if (!info) {
-        res.status(404).send(`Train number '${trainNumber}' on day '${dayInput}' was not found`)
+        // Return 204 instead of 404, since a 404 would get logged to the console..
+        res.status(204).send(`Train number '${trainNumber}' on day '${dayInput}' was not found`)
         return
     }
 

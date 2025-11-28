@@ -3,7 +3,7 @@ import moment from "moment"
 import fs from "node:fs"
 import path from "path"
 
-import { type Train, type Schedule } from '../common/train.ts'
+import { type Train, type Schedule, type TrainInformation } from '../common/train.ts'
 import { getCategoryFromNumber, type Locomotive } from '../common/locomotive.ts'
 
 import logger from "./logger.ts"
@@ -131,11 +131,6 @@ const schedules = indexJson.map(entry => {
     } as Schedule
 })
 
-type TrainInformation = {
-    train: Train
-    locomotives: Locomotive[]
-}
-
 let allocationCache: { [key: string]: LocomotiveAllocations | null } = ({})
 
 export function getTrainInformation(day: moment.Moment, number: string): TrainInformation | null {
@@ -170,7 +165,15 @@ export function getTrainInformation(day: moment.Moment, number: string): TrainIn
     }
     if (!allocationEntry) return { train: train, locomotives: [] } as TrainInformation
 
-    const allocatedTrain = allocationEntry.trains.find(t => t.number == number)
+    const minTimeHM = train.arrival_time || train.transit_time
+    const maxTimeHM = train.departure_time || train.transit_time
+
+    const minTime = minTimeHM ? minTimeHM.hour*60 + minTimeHM.minute : null
+    const maxTime = maxTimeHM ? maxTimeHM.hour*60 + maxTimeHM.minute : null
+
+    const allocatedTrain = allocationEntry.trains.find(t => t.number == number
+        && (!minTime || (t.departure_time.hour*60 + t.departure_time.minute) <= minTime)
+        && (!maxTime || (t.arrival_time.hour*60 + t.arrival_time.minute) >= maxTime))
     if (!allocatedTrain) return { train: train, locomotives: [] } as TrainInformation
 
     return {

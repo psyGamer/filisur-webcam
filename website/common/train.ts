@@ -1,4 +1,5 @@
 import moment from "moment"
+import type { Locomotive } from "./locomotive"
 
 export type Train = {
     number: string
@@ -15,6 +16,11 @@ export type Train = {
         origin: string
         destination: string
     }
+}
+
+export type TrainInformation = {
+    train: Train
+    locomotives: Locomotive[]
 }
 
 export type Schedule = {
