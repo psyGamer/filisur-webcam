@@ -33,22 +33,13 @@ import './Categorize.scss'
 import { TrainList, type TrainDescription } from "../components/TrainDescription";
 import moment from "moment";
 
-const useFetchPending = () => useQuery({
-    queryKey: ['pending'],
-    queryFn: () => axios.get<string[]>("/api/categorize/pending"),
-    staleTime: 300_000,
-})
-
 function Categorize() {
     const [searchParams, setSearchParams] = useSearchParams()
-    const { data, error, isFetching, isLoading } = useFetchPending()
-
-    const [selectedVideo, setSelectedVideo] = useState<number>(0)
+    const videoPath = useMemo(() => searchParams.get("video"), [searchParams])
     const videoTime = useMemo(() => {
-        const videoQuery = searchParams.get("video")
-        if (!videoQuery) return null
+        if (!videoPath) return null
 
-        const fileName = videoQuery.split('/')[1]
+        const fileName = videoPath.split('/')[1]
         if (!fileName) return null
 
         const timeCode = fileName.split('.')[0]
@@ -56,56 +47,24 @@ function Categorize() {
 
         const time = moment(timeCode, "YYYY-MM-DD_HH-mm-ss")
         return time.isValid() ? time : null
-    }, [searchParams])
+    }, [videoPath])
+
+    const { data, error, isFetching, isLoading } = useQuery({
+        queryKey: ['pending'],
+        queryFn: () => axios.get<string[]>("/api/categorize/pending"),
+        staleTime: 300_000,
+    })
 
     const playbackMenuRef = useRef<MediaPlaybackRateMenuType>(null)
     const playbackButtonRef = useRef<MediaPlaybackRateMenuButtonType>(null)
+    const [playing, setPlaying] = useState<boolean>(true)
 
     const [trainDescriptions, setTrainDescriptions] = useState<TrainDescription[]>([{}])
 
     useEffect(() => {
-        if (!playbackMenuRef.current || !playbackButtonRef.current) return
-        console.log(playbackMenuRef.current, playbackButtonRef.current)
-
-        // Load preference
-        const preferredPlaybackSpeed = localStorage.getItem("categorize-playback-speed")
-        if (preferredPlaybackSpeed) {
-            const rate = JSON.parse(preferredPlaybackSpeed)
-            playbackMenuRef.current.mediaPlaybackRate = rate
-            playbackButtonRef.current.mediaPlaybackRate = rate
-        }
-
-        let firstMutation = preferredPlaybackSpeed != null
-
-        const observer = new MutationObserver(mutations => {
-            mutations.forEach(mutation => {
-                // Hack since it tries to change it back to 1x on it's own..
-                if (firstMutation) {
-                    const rate = JSON.parse(preferredPlaybackSpeed!)
-                    playbackMenuRef.current!.mediaPlaybackRate = rate
-                    playbackButtonRef.current!.mediaPlaybackRate = rate
-                    firstMutation = false
-                }
-
-                // Save preference
-                if (mutation.type == "attributes" && playbackMenuRef.current) {
-                    console.log(`Changed ${playbackMenuRef.current.mediaPlaybackRate}`)
-                    localStorage.setItem("categorize-playback-speed", playbackMenuRef.current.mediaPlaybackRate.toString())
-                }
-            });
-        })
-        observer.observe(playbackMenuRef.current, { attributes: true })
-
-        return () => observer.disconnect()
-    })
-
-    const videos = data?.data || []
-    
-    useEffect(() => {
         // Default to first video
-        const selectedIdx = videos.indexOf(searchParams.get("video") || "")
-        if (selectedIdx < 0 && videos.length > 0) {
-            setSearchParams({ "video": videos[0] })
+        if (data && !videoPath) {
+            setSearchParams({ "video": data.data[0] })
         }
     })
 
@@ -115,56 +74,63 @@ function Categorize() {
         return <p>Error: {error.message}</p>
     }
 
-    return <>
-        <div
-            style={{
-                width: '100vw',
-                height: '100vh',
-                display: 'flex',
-            }}
-        >
-            {/* <VerticalVideoSelector sources={videos} selectedIndex={selectedIdx >= 0 ? selectedIdx : null} onSelectedChanged={idx => {
-                const url = new URL(window.location.href)
-                url.searchParams.set("video", videos[idx])
-                window.history.pushState({}, "", url)
+    // Load playback speed preference
+    const preferredPlaybackSpeedJson = localStorage.getItem("categorize-playback-speed") || '1'
+    const preferredPlaybackSpeed = JSON.parse(preferredPlaybackSpeedJson)
+    const playbackSpeed = typeof preferredPlaybackSpeed == 'number' && preferredPlaybackSpeed > 0 ? preferredPlaybackSpeed : 1
 
-                setSelectedVideo(idx)
+    return <>
+        <div className="categorize-view">
+            <VerticalVideoSelector sources={data!.data} value={videoPath!} onChanged={idx => {
+                // Save playback speed preference
+                if (playbackMenuRef.current) {
+                    localStorage.setItem("categorize-playback-speed", playbackMenuRef.current.mediaPlaybackRate.toString())
+                }
+
+                setSearchParams({ "video": idx })
+                setPlaying(true)
+                setTrainDescriptions([{}])
             }} />
 
-            <MediaController
-                style={{
-                    width: '70rem',
-                    height: 'fit-content',
-                    margin: '1.5rem 0',
-                    borderRadius: 'var(--border-radius)'
-                }}
-            >
-                <ReactPlayer 
-                    slot="media"
-                    src={`/cdn/video/${videos[selectedVideo]}`}
-                    playing={true}
-                    style={{
-                        width: '100%',
-                        height: 'auto',
-                        aspectRatio: '11/9'
-                    }} />
-                
-                <MediaLoadingIndicator />
-                <MediaPlaybackRateMenu 
-                    ref={playbackMenuRef}
-                    rates={[1,2,3,4,5,10,15]} 
-                    mediaPlaybackRate={3}
-                    id='playback-menu'
-                    hidden />
-                <MediaControlBar>
-                    <MediaPlayButton />
-                    <MediaSeekBackwardButton seekOffset={15} />
-                    <MediaSeekForwardButton seekOffset={15} />
-                    <MediaTimeRange />
-                    <MediaTimeDisplay showDuration />
-                    <MediaPlaybackRateMenuButton invokeTarget='playback-menu' ref={playbackButtonRef} />
-                </MediaControlBar>
-            </MediaController> */}
+            <div className="media-box">
+                <MediaController>
+                    <ReactPlayer 
+                        slot="media"
+                        src={videoPath ? `/cdn/video/${videoPath}` : undefined}
+                        playing={playing}
+                        onPlay={() => setPlaying(true)}
+                        onPause={() => setPlaying(false)}
+                        playbackRate={playbackSpeed}
+                        style={{
+                            width: '100%',
+                            height: 'auto',
+                            aspectRatio: '11/9'
+                        }} />
+                    
+                    <MediaLoadingIndicator />
+                    <MediaPlaybackRateMenu 
+                        ref={playbackMenuRef}
+                        rates={[1,2,3,4,5,10,15]} 
+                        mediaPlaybackRate={3}
+                        id='playback-menu'
+                        hidden />
+                    <MediaControlBar>
+                        <MediaPlayButton />
+                        <MediaSeekBackwardButton seekOffset={15} />
+                        <MediaSeekForwardButton seekOffset={15} />
+                        <MediaTimeRange />
+                        <MediaTimeDisplay showDuration />
+                        <MediaPlaybackRateMenuButton invokeTarget='playback-menu' ref={playbackButtonRef} />
+                    </MediaControlBar>
+                </MediaController>
+
+                <div className="control-btns">
+                    <button className='button button-danger'>Zurücksetzen</button>
+                    <button className='button'>Speichern</button>
+                    <button className='button button-primary'>Weiter</button>
+                </div>
+            </div>
+            
 
             <TrainList time={videoTime!} descriptions={trainDescriptions} setDescriptions={setTrainDescriptions} />
         </div>

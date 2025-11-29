@@ -1,9 +1,50 @@
-.video-selector {
-    width: 20rem;
+.categorize-view {
+    width: 100vw;
     height: 100vh;
 
-    padding: 0 2rem;
+    overflow: hidden;
+
+    display: flex;
+    justify-content: space-between;
 }
+
+.video-selector {
+    width: 12em;
+    height: calc(100vh - 2em);
+
+    margin: 1em 3em;
+}
+.train-list {
+    width: 30em;
+    float: right;
+
+    .train-box {
+        margin: 1.5em 1.5em;
+    }
+}
+
+.media-box {
+    margin: auto 0;
+}
+.control-btns {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+
+    button {
+        margin: 1em 2em;
+        font-size: 1.2em;
+    }
+}
+
+media-controller {
+    width: 60em;
+    height: fit-content;
+
+    margin: 1.5rem 0;
+    border-radius: var(--border-radius);
+}
+  
 
 media-control-bar {
     --padding-size: 0.75rem;
@@ -15,3 +56,5 @@ media-control-bar media-play-button {
 media-control-bar media-playback-rate-menu-button {
     padding-right: calc(var(--media-button-padding, var(--media-control-padding, 10px)) + var(--padding-size));
 }
+
+

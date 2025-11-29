@@ -6,14 +6,15 @@ import './VerticalVideoSelector.scss'
 
 function VerticalVideoSelector({ 
     sources, 
-    selectedIndex = null, 
-    onSelectedChanged = null
+    value, 
+    onChanged
 } : { 
     sources: string[], 
-    selectedIndex?: number | null, 
-    onSelectedChanged?: ((index: number) => void) | null
+    value: string,
+    onChanged: (value: string) => void
 }) {
-    const [selected, setSelected] = useState(selectedIndex || 0)
+    const selectedIdx = sources.indexOf(value)
+    const [selected, setSelected] = useState(selectedIdx >= 0 ? selectedIdx : 0)
 
     const selectorRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -37,7 +38,7 @@ function VerticalVideoSelector({
                             style={style} 
                             onClick={_ => {
                                 setSelected(idx)
-                                onSelectedChanged?.(idx)
+                                onChanged(sources[idx])
                                 videoRef.current?.scrollIntoView({ behavior:"smooth", block: "center" })
                             }}
                         >
@@ -51,8 +52,6 @@ function VerticalVideoSelector({
     const frame = useRef<number | null>(null)
 
     const measure = useCallback(() => {
-        console.log(`Measure: ${containerRef.current}`)
-
         const el = containerRef.current
         if (!el) return
 

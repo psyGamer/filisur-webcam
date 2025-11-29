@@ -5,13 +5,13 @@
     border: 0.2em solid transparent;
     outline: none;
 
-    padding: 0.15em 0.75em;
     border-radius: var(--border-radius);
 
+    font-size: inherit;
     font-weight: bold;
     text-align: center;
 
-    height: 2.2em;
+    padding: 0.35em 0.8em;
     margin: 0 0.5em;
 
     display: flex;

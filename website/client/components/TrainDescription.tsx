@@ -180,7 +180,7 @@ function TrainDescriptionPanel({ time, description: desc, onDescriptionChanged: 
     onDelete: () => void,
 }) {
     const { data, error, isFetching, isLoading } = useQuery({
-        queryKey: ['suggestions'],
+        queryKey: ['suggestions', time],
         queryFn: () => axios.get<Train[]>("/api/categorize/suggestions?", {
             params: {
                 "time": time.format('YYYY-MM-DD_HH-mm-ss'),
@@ -190,42 +190,50 @@ function TrainDescriptionPanel({ time, description: desc, onDescriptionChanged: 
         }),
         staleTime: 300_000,
     })
-    const suggestions = useMemo(() => (data?.data || []).flatMap<Train, Train>(suggestion => {
-        // Convert all to use 'transit_time' as a general time and adjust origin / destination
-        if (suggestion.transit_time) {
+
+    const suggestions = useMemo(() => {
+        if (!data) return []
+
+        const suggestions = data.data.flatMap<Train, Train>(suggestion => {
+            // Convert all to use 'transit_time' as a general time and adjust origin / destination
+            if (suggestion.transit_time) {
+                return [suggestion]
+            }
+
+            if (suggestion.arrival_time && suggestion.departure_time) {
+                return [
+                    {
+                        ...suggestion,
+                        transit_time: suggestion.arrival_time,
+                        information: {
+                            ...suggestion.information,
+                            destination: 'Filisur',
+                        }
+                    },
+                    {
+                        ...suggestion,
+                        transit_time: suggestion.departure_time,
+                        information: {
+                            ...suggestion.information,
+                            origin: 'Filisur',
+                        }
+                    },
+                ]
+            }
+
+            if (suggestion.arrival_time) {
+                return [{ ...suggestion, transit_time: suggestion.arrival_time }]
+            }
+            if (suggestion.departure_time) {
+                return [{ ...suggestion, transit_time: suggestion.departure_time }]
+            }
+
             return [suggestion]
-        }
+        })
+        suggestions.sort((a, b) => (a.transit_time!.hour*60 + a.transit_time!.minute) - (b.transit_time!.hour*60 + b.transit_time!.minute))
 
-        if (suggestion.arrival_time && suggestion.departure_time) {
-            return [
-                {
-                    ...suggestion,
-                    transit_time: suggestion.arrival_time,
-                    information: {
-                        ...suggestion.information,
-                        destination: 'Filisur',
-                    }
-                },
-                {
-                    ...suggestion,
-                    transit_time: suggestion.departure_time,
-                    information: {
-                        ...suggestion.information,
-                        origin: 'Filisur',
-                    }
-                },
-            ]
-        }
-
-        if (suggestion.arrival_time) {
-            return [{ ...suggestion, transit_time: suggestion.arrival_time }]
-        }
-        if (suggestion.departure_time) {
-            return [{ ...suggestion, transit_time: suggestion.departure_time }]
-        }
-
-        return [suggestion]
-    }), [data])
+        return suggestions
+    }, [data])
 
     const id = useId()
 
@@ -453,7 +461,7 @@ function TrainDescriptionPanel({ time, description: desc, onDescriptionChanged: 
 export function TrainList({ time, descriptions, setDescriptions }: { time: moment.Moment, descriptions: TrainDescription[], setDescriptions: Dispatch<SetStateAction<TrainDescription[]>> }) {
     return <div className="train-list">
         {descriptions.map((desc, idx) => <TrainDescriptionPanel 
-            key={idx}
+            key={`${idx}-${time.format('YYYY-MM-DD_HH-mm-ss')}`}
             time={time}
             description={desc} 
             onDescriptionChanged={newDesc => setDescriptions(curr => curr.map((currDesc, currIdx) => idx == currIdx ? newDesc : currDesc))} 
