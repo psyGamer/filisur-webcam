@@ -4,6 +4,7 @@ import { useRef, useState, type Dispatch, type SetStateAction, useId, useMemo } 
 
 import { LocomotiveCategory, categoryDisplayNames, type Locomotive, getCategoryFromNumber, locomotiveVariant as locomotiveVariants, type LocomotiveCategoryKey } from '../../common/locomotive'
 import { type Train, type TrainInformation } from '../../common/train.ts'
+import { directionNames, type Direction, type OptionalDirection, knownDirections } from '../../common/direction.ts'
 
 import './TrainDescription.scss'
 import { useQuery } from '@tanstack/react-query'
@@ -105,29 +106,6 @@ function LocomotiveDescription({
         
     </div>
 }
-
-type Direction = 'filisur' | 'chur' | 'moritz' | 'davos'
-type OptionalDirection = Direction | 'none'
-
-const directionNames = ({
-    'filisur': 'Filisur',
-    'chur': 'Chur',
-    'moritz': 'St. Moritz',
-    'davos': 'Davos Platz'
-})
-const knownDirections: { [key: string]: Direction } = ({
-    'Chur': 'chur',
-    'Chur GB': 'chur',
-    'Landquart': 'davos',
-    'Landquart GB': 'chur',
-    'Davos Platz': 'davos',
-    'Filisur': 'filisur',
-    'Pontresina': 'moritz',
-    'Samedan': 'moritz',
-    'St. Moritz': 'moritz',
-    'Tirano': 'moritz',
-    'Zermatt': 'chur',
-})
 
 const fullClassiferNames: { [key: string]: string } = ({
     'R 1': 'Regio 1',

@@ -14,6 +14,7 @@ import videoCdn from './server/video.ts'
 import thumbnailCdn from './server/thumbnail.ts'
 
 import logger from './server/logger.ts'
+import db from './server/database.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -44,6 +45,8 @@ async function createServer() {
             next(e)
         }
     })
+
+    console.log(db)
 
     const PORT = 5173
     logger.info(`Running server on port ${PORT}`)
