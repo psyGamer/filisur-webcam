@@ -82,9 +82,9 @@ router.get("/suggestions", async (req, res) => {
     }
 
     const regularTrains = getTrainsInTimespan(time.clone().subtract(regularVariance, 'minutes'), time.clone().add(regularVariance, 'minutes'))
-                            .filter(train => train.information?.classifier != 'Güter')
+                            .filter(train => train.information?.classifier != 'G')
     const freightTrains = getTrainsInTimespan(time.clone().subtract(freightVariance, 'minutes'), time.clone().add(freightVariance, 'minutes'))
-                            .filter(train => train.information?.classifier == 'Güter')
+                            .filter(train => train.information?.classifier == 'G')
 
     res.status(200).json([...regularTrains, ...freightTrains])
 })

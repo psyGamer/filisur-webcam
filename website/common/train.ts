@@ -11,7 +11,7 @@ export type Train = {
     applicable_start_date: moment.Moment | null
     applicable_end_date: moment.Moment | null
 
-    information?: {
+    information: {
         classifier: string
         origin: string
         destination: string

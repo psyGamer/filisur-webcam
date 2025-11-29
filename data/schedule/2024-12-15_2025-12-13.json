@@ -737,7 +737,7 @@
         "number": "5116",
         "transit_time": "07:12",
         "information": {
-            "classifier": "Güter",
+            "classifier": "G",
             "origin": "Samedan",
             "destination": "Chur GB"
         }
@@ -746,7 +746,7 @@
         "number": "5120",
         "transit_time": "07:48",
         "information": {
-            "classifier": "Güter",
+            "classifier": "G",
             "origin": "Samedan",
             "destination": "Chur GB"
         }
@@ -756,7 +756,7 @@
         "arrival_time": "12:26",
         "departure_time": "12:29",
         "information": {
-            "classifier": "Güter",
+            "classifier": "G",
             "origin": "Pontresina",
             "destination": "Landquart GB"
         }
@@ -766,7 +766,7 @@
         "number": "5152",
         "transit_time": "14:25",
         "information": {
-            "classifier": "Güter",
+            "classifier": "G",
             "origin": "Samedan",
             "destination": "Landquart GB"
         }
@@ -775,7 +775,7 @@
         "number": "5164",
         "transit_time": "19:26",
         "information": {
-            "classifier": "Güter",
+            "classifier": "G",
             "origin": "Samedan",
             "destination": "Landquart GB"
         }
@@ -785,7 +785,7 @@
         "number": "5174",
         "transit_time": "21:43",
         "information": {
-            "classifier": "Güter",
+            "classifier": "G",
             "origin": "Samedan",
             "destination": "Landquart GB"
         }
@@ -797,7 +797,7 @@
         "number": "5113",
         "transit_time": "08:11",
         "information": {
-            "classifier": "Güter",
+            "classifier": "G",
             "origin": "Landquart GB",
             "destination": "Pontresina"
         }
@@ -807,7 +807,7 @@
         // TODO: Wartet im Winter nicht auf BEX, ungenau
         "transit_time": "11:15",
         "information": {
-            "classifier": "Güter",
+            "classifier": "G",
             "origin": "Chur GB",
             "destination": "Samedan"
         }
@@ -816,7 +816,7 @@
         "number": "5135",
         "transit_time": "12:30",
         "information": {
-            "classifier": "Güter",
+            "classifier": "G",
             "origin": "Landquart GB",
             "destination": "Samedan"
         }
@@ -826,7 +826,7 @@
         "number": "5151",
         "transit_time": "16:11",
         "information": {
-            "classifier": "Güter",
+            "classifier": "G",
             "origin": "Landquart GB",
             "destination": "Pontresina"
         }
@@ -835,7 +835,7 @@
         "number": "5157",
         "transit_time": "18:30",
         "information": {
-            "classifier": "Güter",
+            "classifier": "G",
             "origin": "Landquart GB",
             "destination": "Pontresina"
         }

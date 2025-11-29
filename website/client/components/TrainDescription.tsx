@@ -1,9 +1,9 @@
 import axios from 'axios'
 import moment from 'moment'
-import { useRef, useState, type Dispatch, type SetStateAction, useId } from 'react'
+import { useRef, useState, type Dispatch, type SetStateAction, useId, useMemo } from 'react'
 
 import { LocomotiveCategory, categoryDisplayNames, type Locomotive, getCategoryFromNumber, locomotiveVariant as locomotiveVariants, type LocomotiveCategoryKey } from '../../common/locomotive'
-import { type Train, type TrainCollection, type TrainInformation } from '../../common/train.ts'
+import { type Train, type TrainInformation } from '../../common/train.ts'
 
 import './TrainDescription.scss'
 import { useQuery } from '@tanstack/react-query'
@@ -129,6 +129,16 @@ const knownDirections: { [key: string]: Direction } = ({
     'Zermatt': 'chur',
 })
 
+const fullClassiferNames: { [key: string]: string } = ({
+    'R 1': 'Regio 1',
+    'R 38': 'Regio 38',
+    'RE 38': 'RegioExpress 38',
+    'IR 38': 'InterRegio 38',
+    'GEX': 'Glacier Express',
+    'BEX': 'Bernina Express',
+    'G': 'Güterzug'
+})
+
 function DirectionRadio({ 
     name, 
     targetDirection, 
@@ -169,7 +179,7 @@ function TrainDescriptionPanel({ time, description: desc, onDescriptionChanged: 
     onDescriptionChanged: (desc: TrainDescription) => void,
     onDelete: () => void,
 }) {
-    const { data: suggestions, error, isFetching, isLoading } = useQuery({
+    const { data, error, isFetching, isLoading } = useQuery({
         queryKey: ['suggestions'],
         queryFn: () => axios.get<Train[]>("/api/categorize/suggestions?", {
             params: {
@@ -180,6 +190,42 @@ function TrainDescriptionPanel({ time, description: desc, onDescriptionChanged: 
         }),
         staleTime: 300_000,
     })
+    const suggestions = useMemo(() => (data?.data || []).flatMap<Train, Train>(suggestion => {
+        // Convert all to use 'transit_time' as a general time and adjust origin / destination
+        if (suggestion.transit_time) {
+            return [suggestion]
+        }
+
+        if (suggestion.arrival_time && suggestion.departure_time) {
+            return [
+                {
+                    ...suggestion,
+                    transit_time: suggestion.arrival_time,
+                    information: {
+                        ...suggestion.information,
+                        destination: 'Filisur',
+                    }
+                },
+                {
+                    ...suggestion,
+                    transit_time: suggestion.departure_time,
+                    information: {
+                        ...suggestion.information,
+                        origin: 'Filisur',
+                    }
+                },
+            ]
+        }
+
+        if (suggestion.arrival_time) {
+            return [{ ...suggestion, transit_time: suggestion.arrival_time }]
+        }
+        if (suggestion.departure_time) {
+            return [{ ...suggestion, transit_time: suggestion.departure_time }]
+        }
+
+        return [suggestion]
+    }), [data])
 
     const id = useId()
 
@@ -196,15 +242,7 @@ function TrainDescriptionPanel({ time, description: desc, onDescriptionChanged: 
             <span className="dropdown-select">
                 <select 
                     value={suggestion} 
-                    onChange={e => {
-                        setSuggestion(e.target.value)
-                        if (trainNumberRef.current) {
-                            // Dispatch even to trigger onChange
-                            const setter: (value: string) => void = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!;
-                            setter.call(trainNumberRef.current, e.target.value);
-                            trainNumberRef.current.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
-                    }}
+                    onChange={e => setSuggestion(e.target.value)}
                     disabled={isLoading || isFetching}
                 >
                     <option value="none" disabled>{isLoading || isFetching
@@ -212,29 +250,49 @@ function TrainDescriptionPanel({ time, description: desc, onDescriptionChanged: 
                         : 'Vorschlag auswählen...'
                     }</option>
 
-                    {(suggestions?.data || []).map(suggestion => {
-                        const minTime = suggestion.arrival_time || suggestion.transit_time || suggestion.departure_time
-                        const maxTime = suggestion.departure_time || suggestion.transit_time || suggestion.arrival_time
+                    {suggestions
+                        .map(suggestion => {
+                            const key = `${suggestion.number}-${knownDirections[suggestion.information.origin]}-${knownDirections[suggestion.information.destination]}`
 
-                        return <option
-                            key={suggestion.number}
-                            value={suggestion.number}
-                        >
-                            {suggestion.number}:
-                            &nbsp;&nbsp;&nbsp;
-                            {suggestion.information?.classifier || ''}
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                            {suggestion.information?.origin || ''}
-                            &nbsp;➔&nbsp;
-                            {suggestion.information?.destination || ''}
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                            {!minTime && !maxTime
-                                ? ''
-                                : minTime == maxTime
-                                    ? `(${formatTime(minTime!)})`
-                                    : `(${formatTime(minTime!)} / ${formatTime(maxTime!)})`}
-                        </option>
-                    })}
+                            return <option
+                                key={key}
+                                value={key}
+                                onClick={async (_) => {
+                                    onDescChagned({ ...desc, number: suggestion.number })
+
+                                    try {
+                                        const res = await axios.get<TrainInformation>("/api/categorize/train-info", {
+                                            params: {
+                                                "day": time.format('YYYY-MM-DD'),
+                                                "train": suggestion.number
+                                            }
+                                        })
+                                        if (res.status == 200) {
+                                            onDescChagned({
+                                                number: res.data.train.number,
+                                                shuntingDrive: false,
+                                                fromDirection: knownDirections[suggestion.information.origin],
+                                                toDirection: knownDirections[suggestion.information.destination],
+                                                locomotives: res.data.locomotives
+                                            })
+                                            setTrainInfo(res.data.train)
+                                        }
+                                    } catch (err) {
+                                        // Ignore
+                                    }
+                                } }
+                            >
+                                {suggestion.number}:
+                                &nbsp;&nbsp;&nbsp;
+                                {suggestion.information?.classifier || ''}
+                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                {suggestion.information?.origin || ''}
+                                &nbsp;➔&nbsp;
+                                {suggestion.information?.destination || ''}
+                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                {`(${formatTime(suggestion.transit_time!)})`}
+                            </option>
+                        })}
                 </select>
             </span>
         </div>
@@ -242,9 +300,12 @@ function TrainDescriptionPanel({ time, description: desc, onDescriptionChanged: 
         <div className='train-nr'>
             <label>Zugnummer</label>
             <input type='text' inputMode='numeric' pattern="\d*" className='input-field' ref={trainNumberRef} value={desc.number || ''} onChange={async e => {
-                if (!isLoading && suggestions) {
-                    if (suggestions.data.some(suggestion => suggestion.number == e.target.value)) {
-                        setSuggestion(e.target.value)
+                if (!isLoading && !isFetching) {
+                    if (suggestions.some(suggestion => e.target.value == suggestion.number
+                                                    && desc.fromDirection == knownDirections[suggestion.information.origin]
+                                                    && desc.toDirection == knownDirections[suggestion.information.destination])
+                    ) {
+                        setSuggestion(`${e.target.value}-${desc.fromDirection}-${desc.toDirection}`)
                     } else {
                         setSuggestion('none')
                     }
@@ -284,14 +345,14 @@ function TrainDescriptionPanel({ time, description: desc, onDescriptionChanged: 
         </div>
 
         <span className='train-info'>
-            <p className='title'>{trainInfo?.information?.classifier || ''}</p>
-            <p>{trainInfo?.information?.origin || ''}</p>
+            <p className='title'>{trainInfo ? fullClassiferNames[trainInfo.information.classifier] : ''}</p>
+            <p>{trainInfo?.information.origin}</p>
             <span className='material-icons'>{trainInfo ? 'east' : ''}</span>
-            <p>{trainInfo?.information?.destination || ''}</p>
+            <p>{trainInfo?.information.destination || ''}</p>
             <p className='time'>{trainInfo?.transit_time 
-                ? `(${trainInfo.transit_time.hour.toString().padStart(2, "0")}:${trainInfo.transit_time.minute.toString().padStart(2, "0")})`
+                ? `(${formatTime(trainInfo.transit_time)})`
                 : trainInfo?.arrival_time && trainInfo?.departure_time
-                    ? `(${trainInfo.arrival_time.hour.toString().padStart(2, "0")}:${trainInfo.arrival_time.minute.toString().padStart(2, "0")} / ${trainInfo.departure_time.hour.toString().padStart(2, "0")}:${trainInfo.departure_time.minute.toString().padStart(2, "0")})`
+                    ? `(${formatTime(trainInfo.arrival_time)} / ${formatTime(trainInfo.departure_time)})`
                     : ''
             }</p>
         </span>
@@ -311,7 +372,22 @@ function TrainDescriptionPanel({ time, description: desc, onDescriptionChanged: 
                     targetDirection={direction as Direction}
                     currentDirection={desc.fromDirection || 'none'}
                     isShunting={desc.shuntingDrive || false} 
-                    onClick={() => onDescChagned({ ...desc, fromDirection: direction as Direction })} />
+                    onClick={() => {
+                        const newFromDirection = direction as Direction
+
+                        if (!isLoading && !isFetching) {
+                            if (suggestions.some(suggestion => desc.number == suggestion.number
+                                                            && newFromDirection == knownDirections[suggestion.information.origin]
+                                                            && desc.toDirection == knownDirections[suggestion.information.destination])
+                            ) {
+                                setSuggestion(`${desc.number}-${newFromDirection}-${desc.toDirection}`)
+                            } else {
+                                setSuggestion('none')
+                            }
+                        }
+
+                        onDescChagned({ ...desc, fromDirection: newFromDirection })
+                    }} />
                 )}
             </fieldset>
 
@@ -324,7 +400,22 @@ function TrainDescriptionPanel({ time, description: desc, onDescriptionChanged: 
                     targetDirection={direction as Direction}
                     currentDirection={desc.toDirection || 'none'}
                     isShunting={desc.shuntingDrive || false} 
-                    onClick={() => onDescChagned({ ...desc, toDirection: direction as Direction })} />
+                    onClick={() => {
+                        const newToDirection = direction as Direction
+
+                        if (!isLoading && !isFetching) {
+                            if (suggestions.some(suggestion => desc.number == suggestion.number
+                                                            && desc.fromDirection == knownDirections[suggestion.information.origin]
+                                                            && newToDirection == knownDirections[suggestion.information.destination])
+                            ) {
+                                setSuggestion(`${desc.number}-${desc.fromDirection}-${newToDirection}`)
+                            } else {
+                                setSuggestion('none')
+                            }
+                        }
+
+                        return onDescChagned({ ...desc, toDirection: newToDirection })
+                    }} />
                 )}
             </fieldset>
         </div>
