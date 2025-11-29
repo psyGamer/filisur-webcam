@@ -341,8 +341,8 @@
     },
     {
         "number": "1169",
-        "arrival_time": "19:59",
-        "departure_time": "20:00",
+        "arrival_time": "20:59",
+        "departure_time": "21:00",
         "information": {
             "classifier": "IR 38",
             "origin": "Chur",
@@ -389,7 +389,7 @@
 
     // R 1 - Richtung Filisur
     {
-        "number": "7808",
+        "number": "7805",
         "departure_time": "07:56",
         "information": {
             "classifier": "R 1",
@@ -398,7 +398,7 @@
         }
     },
     {
-        "number": "7812",
+        "number": "7809",
         "departure_time": "08:56",
         "information": {
             "classifier": "R 1",
@@ -407,7 +407,7 @@
         }
     },
     {
-        "number": "7816",
+        "number": "7813",
         "departure_time": "09:56",
         "information": {
             "classifier": "R 1",
@@ -416,7 +416,7 @@
         }
     },
     {
-        "number": "7820",
+        "number": "7817",
         "departure_time": "10:56",
         "information": {
             "classifier": "R 1",
@@ -425,7 +425,7 @@
         }
     },
     {
-        "number": "7824",
+        "number": "7821",
         "departure_time": "11:56",
         "information": {
             "classifier": "R 1",
@@ -434,7 +434,7 @@
         }
     },
     {
-        "number": "7828",
+        "number": "7825",
         "departure_time": "12:56",
         "information": {
             "classifier": "R 1",
@@ -443,7 +443,7 @@
         }
     },
     {
-        "number": "7832",
+        "number": "7829",
         "departure_time": "13:56",
         "information": {
             "classifier": "R 1",
@@ -452,7 +452,7 @@
         }
     },
     {
-        "number": "7836",
+        "number": "7833",
         "departure_time": "14:56",
         "information": {
             "classifier": "R 1",
@@ -461,7 +461,7 @@
         }
     },
     {
-        "number": "7840",
+        "number": "7837",
         "departure_time": "15:56",
         "information": {
             "classifier": "R 1",
@@ -470,7 +470,7 @@
         }
     },
     {
-        "number": "7844",
+        "number": "7841",
         "departure_time": "16:56",
         "information": {
             "classifier": "R 1",
@@ -479,7 +479,7 @@
         }
     },
     {
-        "number": "7848",
+        "number": "7845",
         "departure_time": "17:56",
         "information": {
             "classifier": "R 1",
@@ -488,7 +488,7 @@
         }
     },
     {
-        "number": "7852",
+        "number": "7849",
         "departure_time": "18:56",
         "information": {
             "classifier": "R 1",
@@ -497,7 +497,7 @@
         }
     },
     {
-        "number": "7856",
+        "number": "7853",
         "departure_time": "19:56",
         "information": {
             "classifier": "R 1",
@@ -506,7 +506,7 @@
         }
     },
     {
-        "number": "7860",
+        "number": "7857",
         "departure_time": "20:56",
         "information": {
             "classifier": "R 1",

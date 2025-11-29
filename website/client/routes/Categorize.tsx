@@ -30,7 +30,7 @@ import {
 import VerticalVideoSelector from "../components/VerticalVideoSelector"
 
 import './Categorize.scss'
-import TrainDescriptionPanel, { TrainList, type TrainDescription } from "../components/TrainDescription";
+import { TrainList, type TrainDescription } from "../components/TrainDescription";
 import moment from "moment";
 
 const useFetchPending = () => useQuery({

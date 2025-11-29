@@ -1,6 +1,9 @@
 .train-list {
     display: flex;
     flex-direction: column;
+    
+    height: 100vh;
+    overflow: scroll;
 
     .train-box {
         border-radius: calc(1.5 * var(--border-radius));

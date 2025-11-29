@@ -280,5 +280,3 @@ export function TrainList({ descriptions, setDescriptions }: { descriptions: Tra
         <button className='button button-primary train-btn' onClick={() => setDescriptions(curr => [...curr, {}])}>Zug Hinzufügen</button>
     </div>
 }
-
-export default TrainDescriptionPanel
