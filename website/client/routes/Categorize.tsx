@@ -1,5 +1,5 @@
 import axios from "axios"
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query"
 import { useSearchParams } from "react-router-dom"
 
@@ -44,6 +44,19 @@ function Categorize() {
     const { data, error, isFetching, isLoading } = useFetchPending()
 
     const [selectedVideo, setSelectedVideo] = useState<number>(0)
+    const videoTime = useMemo(() => {
+        const videoQuery = searchParams.get("video")
+        if (!videoQuery) return null
+
+        const fileName = videoQuery.split('/')[1]
+        if (!fileName) return null
+
+        const timeCode = fileName.split('.')[0]
+        if (!timeCode) return null
+
+        const time = moment(timeCode, "YYYY-MM-DD_HH-mm-ss")
+        return time.isValid() ? time : null
+    }, [searchParams])
 
     const playbackMenuRef = useRef<MediaPlaybackRateMenuType>(null)
     const playbackButtonRef = useRef<MediaPlaybackRateMenuButtonType>(null)
@@ -86,22 +99,20 @@ function Categorize() {
         return () => observer.disconnect()
     })
 
+    const videos = data?.data || []
+    
+    useEffect(() => {
+        // Default to first video
+        const selectedIdx = videos.indexOf(searchParams.get("video") || "")
+        if (selectedIdx < 0 && videos.length > 0) {
+            setSearchParams({ "video": videos[0] })
+        }
+    })
+
     if (isFetching || isLoading) {
         return <p>Loading...</p>
     } else if (error) {
         return <p>Error: {error.message}</p>
-    }
-
-    const videos = data!.data
-    const selectedIdx = videos.indexOf(searchParams.get("video") || "")
-
-    // Default to first video
-    if (selectedIdx < 0) {
-        const url = new URL(window.location.href);
-        url.searchParams.set("video", videos[0]);
-        window.history.pushState({}, "", url);
-
-        setSelectedVideo(selectedIdx)
     }
 
     return <>
@@ -155,7 +166,7 @@ function Categorize() {
                 </MediaControlBar>
             </MediaController> */}
 
-            <TrainList descriptions={trainDescriptions} setDescriptions={setTrainDescriptions} />
+            <TrainList time={videoTime!} descriptions={trainDescriptions} setDescriptions={setTrainDescriptions} />
         </div>
     </>
 }

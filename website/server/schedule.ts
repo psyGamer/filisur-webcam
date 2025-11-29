@@ -3,7 +3,7 @@ import moment from "moment"
 import fs from "node:fs"
 import path from "path"
 
-import { type Train, type Schedule, type TrainInformation } from '../common/train.ts'
+import { type Train, type Schedule, isScheduleApplicable, isTrainApplicable } from '../common/train.ts'
 import { getCategoryFromNumber, type Locomotive } from '../common/locomotive.ts'
 
 import logger from "./logger.ts"
@@ -131,23 +131,40 @@ const schedules = indexJson.map(entry => {
     } as Schedule
 })
 
-let allocationCache: { [key: string]: LocomotiveAllocations | null } = ({})
-
-export function getTrainInformation(day: moment.Moment, number: string): TrainInformation | null {
-    // Find scheduled train
-    const train = schedules
-        .filter(schedule => schedule.start_date <= day && schedule.end_date >= day)
+export function getTrainByNumber(day: moment.Moment, number: string): Train | undefined {
+    return schedules
+        .filter(schedule => isScheduleApplicable(schedule, day))
         .map(schedule => schedule.trains
-            .filter(train => train.applicable_weekdays.includes(day.weekday()) 
-                          && (!train.applicable_start_date || train.applicable_start_date <= day) 
-                          && (!train.applicable_end_date || train.applicable_end_date >= day))
+            .filter(train => isTrainApplicable(train, day))
             .find(train => train.number == number))
         .find(x => x)
-    
-    if (!train) return null
+}
+export function getTrainsInTimespan(startMoment: moment.Moment, endMoment: moment.Moment): Train[] {
+    const startTime = startMoment.hour()*60 + startMoment.minute()
+    const endTime = endMoment.hour()*60 + endMoment.minute()
 
+    return schedules
+        .filter(schedule => isScheduleApplicable(schedule, startMoment) || isScheduleApplicable(schedule, endMoment))
+        .flatMap(schedule => schedule.trains
+            .filter(train => isTrainApplicable(train, startMoment) || isTrainApplicable(train, endMoment))
+            .filter(train => {
+                const minTimeHM = train.arrival_time || train.transit_time
+                const maxTimeHM = train.departure_time || train.transit_time
+
+                let minTime = minTimeHM ? minTimeHM.hour*60 + minTimeHM.minute : null
+                let maxTime = maxTimeHM ? maxTimeHM.hour*60 + maxTimeHM.minute : null
+                if (!minTime && !maxTime) return false
+                minTime ||= maxTime!
+                maxTime ||= minTime!
+            
+                return maxTime >= startTime && minTime <= endTime
+            }))
+}
+
+let allocationCache: { [key: string]: LocomotiveAllocations | null } = ({})
+export function getLocomotives(train: Train, time: moment.Moment): Locomotive[] {
     // Search for train in day's allocations
-    const allocationPath = path.join(allocationDir, `${day.format('YYYY_MM_DD')}.min.json`)
+    const allocationPath = path.join(allocationDir, `${time.format('YYYY_MM_DD')}.min.json`)
 
     let allocationEntry = allocationCache[allocationPath]
     if (allocationEntry == undefined) {
@@ -163,7 +180,7 @@ export function getTrainInformation(day: moment.Moment, number: string): TrainIn
             allocationCache[allocationPath] = allocationEntry = null
         }
     }
-    if (!allocationEntry) return { train: train, locomotives: [] } as TrainInformation
+    if (!allocationEntry) return []
 
     const minTimeHM = train.arrival_time || train.transit_time
     const maxTimeHM = train.departure_time || train.transit_time
@@ -171,18 +188,15 @@ export function getTrainInformation(day: moment.Moment, number: string): TrainIn
     const minTime = minTimeHM ? minTimeHM.hour*60 + minTimeHM.minute : null
     const maxTime = maxTimeHM ? maxTimeHM.hour*60 + maxTimeHM.minute : null
 
-    const allocatedTrain = allocationEntry.trains.find(t => t.number == number
+    const allocatedTrain = allocationEntry.trains.find(t => t.number == train.number
         && (!minTime || (t.departure_time.hour*60 + t.departure_time.minute) <= minTime)
         && (!maxTime || (t.arrival_time.hour*60 + t.arrival_time.minute) >= maxTime))
-    if (!allocatedTrain) return { train: train, locomotives: [] } as TrainInformation
+    if (!allocatedTrain) return []
 
-    return {
-        train: train,
-        locomotives: allocatedTrain.locomotives.map(loco => ({
-            number: loco.number,
-            category: getCategoryFromNumber(loco.number),
-            isTowed: loco.role == 'S',
-            positionIndex: loco.position
-        } as Locomotive))
-    } as TrainInformation
+    return allocatedTrain.locomotives.map(loco => ({
+        number: loco.number,
+        category: getCategoryFromNumber(loco.number),
+        isTowed: loco.role == 'S',
+        positionIndex: loco.position
+    } as Locomotive))
 }

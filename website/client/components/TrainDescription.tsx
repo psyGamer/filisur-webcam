@@ -1,11 +1,12 @@
 import axios from 'axios'
 import moment from 'moment'
-import { useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { useRef, useState, type Dispatch, type SetStateAction, useId } from 'react'
 
 import { LocomotiveCategory, categoryDisplayNames, type Locomotive, getCategoryFromNumber, locomotiveVariant as locomotiveVariants, type LocomotiveCategoryKey } from '../../common/locomotive'
-import { type Train, type TrainInformation } from '../../common/train.ts'
+import { type Train, type TrainCollection, type TrainInformation } from '../../common/train.ts'
 
 import './TrainDescription.scss'
+import { useQuery } from '@tanstack/react-query'
 
 function LocomotiveDescription({ 
     locomotive,
@@ -81,7 +82,7 @@ function LocomotiveDescription({
                         category: e.target.value == 'none' ? undefined : e.target.value as LocomotiveCategoryKey,
                     })
                 }}>
-                    <option value="none">Lokkategorie auswählen...</option>
+                    <option value="none" disabled>Lokkategorie auswählen...</option>
                     {Object.values(LocomotiveCategory).map(cat => <option key={cat} value={cat}>{categoryDisplayNames[cat]}</option>)}
                 </select>
             </span>
@@ -156,21 +157,105 @@ export type TrainDescription = {
 
     locomotives?: Locomotive[]
 }
+type HourMinute = { hour: number, minute: number }
+function formatTime(time: HourMinute): string {
+    return `${time.hour.toString().padStart(2, "0")}:${time.minute.toString().padStart(2, "0")}`
+}
 
-function TrainDescriptionPanel({ day, description: desc, onDescriptionChanged: onDescChagned }: { day: moment.Moment, description: TrainDescription, onDescriptionChanged: (desc: TrainDescription) => void }) {
+function TrainDescriptionPanel({ time, description: desc, onDescriptionChanged: onDescChagned, onDelete }: { 
+    time: moment.Moment, 
+    description: TrainDescription, 
+
+    onDescriptionChanged: (desc: TrainDescription) => void,
+    onDelete: () => void,
+}) {
+    const { data: suggestions, error, isFetching, isLoading } = useQuery({
+        queryKey: ['suggestions'],
+        queryFn: () => axios.get<Train[]>("/api/categorize/suggestions?", {
+            params: {
+                "time": time.format('YYYY-MM-DD_HH-mm-ss'),
+                "regularVariance": 20,
+                "freightVariance": 60,
+            }
+        }),
+        staleTime: 300_000,
+    })
+
+    const id = useId()
+
     const [trainInfo, setTrainInfo] = useState<Train | null>(null)
+    const [suggestion, setSuggestion] = useState<string>('none')
 
     const locomotives = desc.locomotives || []
     const setLocomotives = (locomotives: Locomotive[]) => onDescChagned({ ...desc, locomotives: locomotives })
 
+    const trainNumberRef = useRef<HTMLInputElement>(null)
+
     return <div className='train-box'>
+        <div className="train-suggestion">
+            <span className="dropdown-select">
+                <select 
+                    value={suggestion} 
+                    onChange={e => {
+                        setSuggestion(e.target.value)
+                        if (trainNumberRef.current) {
+                            // Dispatch even to trigger onChange
+                            const setter: (value: string) => void = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!;
+                            setter.call(trainNumberRef.current, e.target.value);
+                            trainNumberRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                    }}
+                    disabled={isLoading || isFetching}
+                >
+                    <option value="none" disabled>{isLoading || isFetching
+                        ? 'Lade Vorschläge...'
+                        : 'Vorschlag auswählen...'
+                    }</option>
+
+                    {(suggestions?.data || []).map(suggestion => {
+                        const minTime = suggestion.arrival_time || suggestion.transit_time || suggestion.departure_time
+                        const maxTime = suggestion.departure_time || suggestion.transit_time || suggestion.arrival_time
+
+                        return <option
+                            key={suggestion.number}
+                            value={suggestion.number}
+                        >
+                            {suggestion.number}:
+                            &nbsp;&nbsp;&nbsp;
+                            {suggestion.information?.classifier || ''}
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                            {suggestion.information?.origin || ''}
+                            &nbsp;➔&nbsp;
+                            {suggestion.information?.destination || ''}
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                            {!minTime && !maxTime
+                                ? ''
+                                : minTime == maxTime
+                                    ? `(${formatTime(minTime!)})`
+                                    : `(${formatTime(minTime!)} / ${formatTime(maxTime!)})`}
+                        </option>
+                    })}
+                </select>
+            </span>
+        </div>
+
         <div className='train-nr'>
             <label>Zugnummer</label>
-            <input type='text' inputMode='numeric' pattern="\d*" className='input-field' onChange={async e => {
+            <input type='text' inputMode='numeric' pattern="\d*" className='input-field' ref={trainNumberRef} value={desc.number || ''} onChange={async e => {
+                if (!isLoading && suggestions) {
+                    if (suggestions.data.some(suggestion => suggestion.number == e.target.value)) {
+                        setSuggestion(e.target.value)
+                    } else {
+                        setSuggestion('none')
+                    }
+                }
+
+                onDescChagned({ ...desc, number: e.target.value })
+
                 try {
                     const res = await axios.get<TrainInformation>("/api/categorize/train-info", {
                         params: { 
-                            "day": day.format('YYYY-MM-DD'),
+                            "day": time.format('YYYY-MM-DD'),
                             "train": e.target.value
                         }
                     })
@@ -179,7 +264,7 @@ function TrainDescriptionPanel({ day, description: desc, onDescriptionChanged: o
                         const destinationDirection = res.data.train.information ? knownDirections[res.data.train.information.destination] : undefined
 
                         onDescChagned({
-                            number: desc.number,
+                            number: res.data.train.number,
                             shuntingDrive: false,
                             fromDirection: originDirection ? originDirection : desc.fromDirection,
                             toDirection: destinationDirection ? destinationDirection : desc.toDirection,
@@ -212,7 +297,7 @@ function TrainDescriptionPanel({ day, description: desc, onDescriptionChanged: o
         </span>
 
         <div className='shunting checkbox-toggle' >
-            <input type='checkbox' id='shunting' checked={desc.shuntingDrive} onChange={e => onDescChagned({ ...desc, shuntingDrive: e.target.checked })}/>
+            <input type='checkbox' id='shunting' checked={desc.shuntingDrive || false} onChange={e => onDescChagned({ ...desc, shuntingDrive: e.target.checked })}/>
             <label htmlFor='shunting'>Rangierfahrt</label>
         </div>
 
@@ -221,7 +306,8 @@ function TrainDescriptionPanel({ day, description: desc, onDescriptionChanged: o
                 <legend>Von</legend>
 
                 {Object.keys(directionNames).map(direction => <DirectionRadio 
-                    name='from' 
+                    key={direction}
+                    name={`from-${id}`}
                     targetDirection={direction as Direction}
                     currentDirection={desc.fromDirection || 'none'}
                     isShunting={desc.shuntingDrive || false} 
@@ -232,8 +318,9 @@ function TrainDescriptionPanel({ day, description: desc, onDescriptionChanged: o
             <fieldset>
                 <legend>Nach</legend>
 
-                {Object.keys(directionNames).map(direction => <DirectionRadio 
-                    name='to' 
+                {Object.keys(directionNames).map(direction => <DirectionRadio
+                    key={direction}
+                    name={`to-${id}`}
                     targetDirection={direction as Direction}
                     currentDirection={desc.toDirection || 'none'}
                     isShunting={desc.shuntingDrive || false} 
@@ -245,8 +332,8 @@ function TrainDescriptionPanel({ day, description: desc, onDescriptionChanged: o
         {locomotives.map((loco, idx) => <LocomotiveDescription 
             key={idx} 
             locomotive={loco} 
-            onLocomotiveChanged={new_loco => setLocomotives(locomotives.map((curr_loco, curr_idx) => idx == curr_idx ? new_loco : curr_loco))}
-            onTowedChanged={locomotives.length == 1 ? undefined : towed => setLocomotives(locomotives.map((curr_loco, curr_idx) => idx == curr_idx ? { ...curr_loco, isTowed: towed } : curr_loco))}
+            onLocomotiveChanged={newLoco => setLocomotives(locomotives.map((currLoco, currIdx) => idx == currIdx ? newLoco : currLoco))}
+            onTowedChanged={locomotives.length == 1 ? undefined : towed => setLocomotives(locomotives.map((currLoco, currIdx) => idx == currIdx ? { ...currLoco, isTowed: towed } : currLoco))}
             onMoveUp={idx == 0 ? undefined : () => setLocomotives([
                 ...locomotives.slice(0, idx - 1),
                 { ...locomotives[idx], positionIndex: idx - 1 },
@@ -261,21 +348,28 @@ function TrainDescriptionPanel({ day, description: desc, onDescriptionChanged: o
             ])}
             onDelete={() => setLocomotives([
                 ...locomotives.slice(0, idx),
-                ...locomotives.slice(idx + 1).map((curr_loco, curr_idx) => ({ ...curr_loco, positionIndex: curr_idx - 1 })),
+                ...locomotives.slice(idx + 1).map((currLoco, currIdx) => ({ ...currLoco, positionIndex: currIdx - 1 })),
             ])}
             />)}
 
-        <button className='button button-primary loco-btn' onClick={() => setLocomotives([...locomotives, { positionIndex: locomotives.length }])}>Lok Hinzufügen</button>
+        <div className='bottom-btns'>
+            <button className='button button-primary' onClick={() => setLocomotives([...locomotives, { positionIndex: locomotives.length }])}>Lok Hinzufügen</button>
+            <button className='button button-danger' onClick={onDelete}>Zug Löschen</button>
+        </div>
     </div>
 }
 
-export function TrainList({ descriptions, setDescriptions }: { descriptions: TrainDescription[], setDescriptions: Dispatch<SetStateAction<TrainDescription[]>> }) {
+export function TrainList({ time, descriptions, setDescriptions }: { time: moment.Moment, descriptions: TrainDescription[], setDescriptions: Dispatch<SetStateAction<TrainDescription[]>> }) {
     return <div className="train-list">
         {descriptions.map((desc, idx) => <TrainDescriptionPanel 
-            key={idx} 
-            day={moment()} 
+            key={idx}
+            time={time}
             description={desc} 
             onDescriptionChanged={newDesc => setDescriptions(curr => curr.map((currDesc, currIdx) => idx == currIdx ? newDesc : currDesc))} 
+            onDelete={() => setDescriptions(curr => [
+                ...curr.slice(0, idx),
+                ...curr.slice(idx + 1),
+            ])}
         />)}
         <button className='button button-primary train-btn' onClick={() => setDescriptions(curr => [...curr, {}])}>Zug Hinzufügen</button>
     </div>

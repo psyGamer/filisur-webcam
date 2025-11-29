@@ -9,9 +9,10 @@ import express from 'express'
 
 import { createServer as createViteServer } from 'vite'
 
-import api from './server/api.ts'
-import video from './server/video.ts'
-import thumbnail from './server/thumbnail.ts'
+import categorizeApi from './server/categorize.ts'
+import videoCdn from './server/video.ts'
+import thumbnailCdn from './server/thumbnail.ts'
+
 import logger from './server/logger.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -20,9 +21,9 @@ async function createServer() {
     const app = express()
 
     // Setup server routes
-    app.use("/api", api)
-    app.use("/cdn/video", video)
-    app.use("/cdn/thumbnail", thumbnail)
+    app.use("/api/categorize", categorizeApi)
+    app.use("/cdn/video", videoCdn)
+    app.use("/cdn/thumbnail", thumbnailCdn)
 
     // Setup Vite middleware
     const vite = await createViteServer({
