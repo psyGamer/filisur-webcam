@@ -15,43 +15,6 @@ import cv2
 webcam_url = "https://grischuna-cam.weta.ch/cgi-bin/mjpg/video.cgi?channel=0&subtype=1"
 
 video_source = webcam_url
-# video_source = "/media/Storage/RhB_Live_Download/webcams/filisur/test_data/showdown_17_19-11-cut-merged-1763571587874.avi"
-# video_source = "test_data/showdown_17_19-11-cut-merged-1763571763260.avi"
-# video_source = "test_data/reversed.avi"
-
-# video_source = "videos/2025-11-20_05-55-30.mp4" ## Ausfahrt Gleis. 1 -> Chur
-
-## False Positives
-# video_source = "false_positive/2025-11-21_00-16-05.mp4"
-# video_source = "false_positive/2025-11-20_18-56-16.mp4"
-# video_source = "false_positive/2025-11-21_00-21-12.mp4"
-# video_source = "false_positive/2025-11-21_01-08-03.mp4"
-# video_source = "false_positive/2025-11-21_02-57-40.mp4"
-# video_source = "false_positive/2025-11-21_03-20-12.mp4"
-# video_source = "false_positive/2025-11-21_04-15-11.mp4"
-
-## False Negative
-# video_source = "false_negative/2025-11-21_22-02-10.mts"
-
-## Real Trains
-# video_source = "real_videos/2025-11-21_05-54-56.mp4"
-# video_source = "real_videos/2025-11-21_06-14-23.mp4"
-# video_source = "real_videos/2025-11-21_07-59-24.mp4"
-# video_source = "real_videos/2025-11-21_08-01-08.mp4"
-
-## Tests
-# video_source = "test_data/showdown_18.avi"
-# video_source = "test_data/night_switch.mts"
-
-# video_source = "videos/2025-11-22_11-58-36.mp4"
-# video_source = "videos/2025-11-22_12-04-22.mp4"
-# video_source = "real_videos/2025-11-20_22-03-13.mts"
-# video_source = "real_videos/2025-11-21_23-05-20.mp4"
-# video_source = "videos/2025-11-22_13-58-49.mp4"
-# video_source = "rain/2025-11-25_04-40-48.mp4"
-# video_source = "snippets/2025-11-25_18-58-05.mts"
-# video_source = "/tmp/test3.mp4"
-# video_source = "videos/2025-11-26_12-56-45.mp4"
 
 window_normal = "Normal"
 window_diff   = "Difference"
@@ -68,7 +31,7 @@ last_image_write = None
 
 debug_mode = True
 debug_log = False
-output_video = True or video_source == webcam_url or not debug_mode
+output_video = video_source == webcam_url or not debug_mode
 
 class DayMode(Enum):
     BOTH = 0
@@ -218,13 +181,11 @@ class SnippetCollection:
 
     recording: bool = False
     segments: list[str] = None
-    removal_queue: list[str] = None
 
     start_time: float = 0.0
 
     def __post_init__(self):
         self.segments = []
-        self.removal_queue = []
 
     def start_recording(self, time: float, skip_start_buffer: bool):
         now = datetime.now()
@@ -261,18 +222,10 @@ class SnippetCollection:
         self.previous_file = self.current_file
         self.current_file = file
 
-        if output_video:
-            self.removal_queue.append(file)
-
         if self.recording:
             self.segments.append(file)
         elif len(self.segments) != 0:
             self.flush()
-        elif len(self.removal_queue) > 180 and output_video:
-            while len(self.removal_queue) > 60:
-                queued_file = self.removal_queue.pop(0)
-                print(f"* Cleaned {queued_file}")
-                # os.remove(queued_file)
     
     def flush(self):
         if not output_video:
@@ -318,7 +271,7 @@ class FFmpegVideoWriter:
             return
 
         self.process.stdin.close()
-        # self.process.wait()
+
 
 ## Debug controls
 auto_playback = True
@@ -456,6 +409,10 @@ def run_capture(queue: Queue[StreamMeta | str | cv2.typing.MatLike | FFmpegVideo
                 if fail_count > 100:
                     print("Capture failed due to unknown reasons")
                     capture.release()
+
+                    if writer and output_video:
+                        writer.release()
+                        writer.process.wait()
                     return
                 continue
             else:
@@ -561,9 +518,9 @@ def run_capture(queue: Queue[StreamMeta | str | cv2.typing.MatLike | FFmpegVideo
                         case 27: # ESC
                             break
     except:
-        if writer:
+        if writer and output_video:
             writer.release()
-            queue.put(writer)
+            writer.process.wait()
         
         raise
 
